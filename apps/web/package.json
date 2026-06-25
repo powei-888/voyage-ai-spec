@@ -1,0 +1,22 @@
+{
+  "name": "@voyage/web",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@voyage/shared": "0.1.0",
+    "next": "^16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "typecheck": "tsc --noEmit",
+    "test": "node -e \"console.log('No web tests yet')\""
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3"
+  }
+}
