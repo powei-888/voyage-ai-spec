@@ -131,16 +131,16 @@ model TripMember {
   trip Trip  @relation(fields: [tripId], references: [id])
   user User? @relation(fields: [userId], references: [id])
 
-  createdEvents     ItineraryEvent[]    @relation("EventCreator")
+  createdEvents     ItineraryEvent[]     @relation("EventCreator")
   eventParticipants EventParticipant[]
-  uploadedReceipts  Receipt[]           @relation("ReceiptUploader")
-  confirmedReceipts Receipt[]           @relation("ReceiptConfirmer")
-  paidExpenses      Expense[]           @relation("ExpensePayer")
-  createdExpenses   Expense[]           @relation("ExpenseCreator")
+  uploadedReceipts  Receipt[]            @relation("ReceiptUploader")
+  confirmedReceipts Receipt[]            @relation("ReceiptConfirmer")
+  paidExpenses      Expense[]            @relation("ExpensePayer")
+  createdExpenses   Expense[]            @relation("ExpenseCreator")
   expenseShares     ExpenseParticipant[]
-  createdBookings   Booking[]           @relation("BookingCreator")
-  createdProposals  AIProposal[]        @relation("AIProposalCreator")
-  appliedProposals  AIProposal[]        @relation("AIProposalApplier")
+  createdBookings   Booking[]            @relation("BookingCreator")
+  createdProposals  AIProposal[]         @relation("AIProposalCreator")
+  appliedProposals  AIProposal[]         @relation("AIProposalApplier")
 
   @@index([tripId])
   @@index([userId])
@@ -221,15 +221,13 @@ model Receipt {
   confidenceScore     Decimal?
   confirmedByMemberId String?
   confirmedAt         DateTime?
-  createdExpenseId    String?       @unique
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
   trip              Trip        @relation(fields: [tripId], references: [id])
   uploadedByMember  TripMember? @relation("ReceiptUploader", fields: [uploadedByMemberId], references: [id])
   confirmedByMember TripMember? @relation("ReceiptConfirmer", fields: [confirmedByMemberId], references: [id])
-  createdExpense    Expense?    @relation("ReceiptCreatedExpense", fields: [createdExpenseId], references: [id])
-  linkedExpense     Expense?    @relation("ExpenseLinkedReceipt")
+  confirmedExpense  Expense?    @relation("ReceiptConfirmedExpense")
 
   @@index([tripId])
   @@index([ocrStatus])
@@ -257,8 +255,7 @@ model Expense {
   trip            Trip                 @relation(fields: [tripId], references: [id])
   payerMember     TripMember           @relation("ExpensePayer", fields: [payerMemberId], references: [id])
   createdByMember TripMember?          @relation("ExpenseCreator", fields: [createdByMemberId], references: [id])
-  linkedReceipt   Receipt?             @relation("ExpenseLinkedReceipt", fields: [linkedReceiptId], references: [id])
-  createdReceipt  Receipt?             @relation("ReceiptCreatedExpense")
+  linkedReceipt   Receipt?             @relation("ReceiptConfirmedExpense", fields: [linkedReceiptId], references: [id])
   linkedEvent     ItineraryEvent?      @relation(fields: [linkedEventId], references: [id])
   participants    ExpenseParticipant[]
 
