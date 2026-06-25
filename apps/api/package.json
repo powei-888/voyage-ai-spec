@@ -1,0 +1,30 @@
+{
+  "name": "@voyage/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "jest",
+    "prisma:generate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://voyage:voyage@localhost:5432/voyage_ai?schema=public}\" prisma generate --schema prisma/schema.prisma",
+    "prisma:validate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://voyage:voyage@localhost:5432/voyage_ai?schema=public}\" prisma validate --schema prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/core": "^11.1.27",
+    "@nestjs/platform-fastify": "^11.1.27",
+    "@prisma/client": "5.22.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.23",
+    "@nestjs/testing": "^11.1.27",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.4.2",
+    "prisma": "5.22.0",
+    "ts-jest": "^29.4.11"
+  }
+}
