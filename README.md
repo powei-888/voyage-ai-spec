@@ -1,1 +1,1 @@
-# voyage-ai-spec
+# voyage-ai-specVoyage AI
