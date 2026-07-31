@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TripStatus {
+  active
+  archived
+}
+
+enum TripRole {
+  owner
+  member
+}
+
+enum EventCategory {
+  attraction
+  restaurant
+  hotel
+  transport
+  activity
+  shopping
+  free_time
+  other
+}
+
+enum ExpenseCategory {
+  food
+  hotel
+  transport
+  shopping
+  ticket
+  activity
+  other
+}
+
+enum ExpenseStatus {
+  active
+  voided
+}
+
+enum ReceiptStatus {
+  pending
+  processing
+  extracted
+  confirmed
+  failed
+}
+
+enum BookingType {
+  flight
+  hotel
+  train
+  bus
+  restaurant
+  activity
+  car_rental
+  other
+}
+
+enum AIProposalType {
+  itinerary_check
+  itinerary_update
+  expense_summary
+  receipt_review
+  booking_parse
+  memory_draft
+}
+
+enum AIProposalStatus {
+  pending
+  accepted
+  rejected
+  expired
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  displayName String
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ownedTrips  Trip[]       @relation("TripOwner")
+  memberships TripMember[]
+}
+
+model Trip {
+  id                 String     @id @default(uuid())
+  name               String
+  destinationCountry String?
+  destinationCity    String?
+  startDate          DateTime
+  endDate            DateTime
+  baseCurrency       String     @default("USD")
+  budgetAmount       Decimal?
+  ownerUserId        String
+  status             TripStatus @default(active)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  owner     User             @relation("TripOwner", fields: [ownerUserId], references: [id])
+  members   TripMember[]
+  days      ItineraryDay[]
+  events    ItineraryEvent[]
+  receipts  Receipt[]
+  expenses  Expense[]
+  bookings  Booking[]
+  proposals AIProposal[]
+
+  @@index([ownerUserId])
+  @@index([startDate])
+  @@index([status])
+}
+
+model TripMember {
+  id          String   @id @default(uuid())
+  tripId      String
+  userId      String?
+  displayName String
+  role        TripRole @default(member)
+  joinedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  trip Trip  @relation(fields: [tripId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
+
+  createdEvents     ItineraryEvent[]     @relation("EventCreator")
+  eventParticipants EventParticipant[]
+  uploadedReceipts  Receipt[]            @relation("ReceiptUploader")
+  confirmedReceipts Receipt[]            @relation("ReceiptConfirmer")
+  paidExpenses      Expense[]            @relation("ExpensePayer")
+  createdExpenses   Expense[]            @relation("ExpenseCreator")
+  expenseShares     ExpenseParticipant[]
+  createdBookings   Booking[]            @relation("BookingCreator")
+  createdProposals  AIProposal[]         @relation("AIProposalCreator")
+  appliedProposals  AIProposal[]         @relation("AIProposalApplier")
+
+  @@index([tripId])
+  @@index([userId])
+  @@index([tripId, displayName])
+}
+
+model ItineraryDay {
+  id        String   @id @default(uuid())
+  tripId    String
+  date      DateTime
+  dayIndex  Int
+  title     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip   Trip             @relation(fields: [tripId], references: [id])
+  events ItineraryEvent[]
+
+  @@unique([tripId, date])
+  @@unique([tripId, dayIndex])
+  @@index([tripId])
+}
+
+model ItineraryEvent {
+  id                    String        @id @default(uuid())
+  tripId                String
+  dayId                 String
+  title                 String
+  category              EventCategory @default(other)
+  startTime             DateTime?
+  endTime               DateTime?
+  locationName          String?
+  address               String?
+  latitude              Decimal?
+  longitude             Decimal?
+  notes                 String?
+  estimatedCostAmount   Decimal?
+  estimatedCostCurrency String?
+  sortOrder             Int           @default(0)
+  createdByMemberId     String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  trip            Trip               @relation(fields: [tripId], references: [id])
+  day             ItineraryDay       @relation(fields: [dayId], references: [id])
+  createdByMember TripMember?        @relation("EventCreator", fields: [createdByMemberId], references: [id])
+  participants    EventParticipant[]
+  bookings        Booking[]
+  expenses        Expense[]
+
+  @@index([tripId])
+  @@index([dayId])
+  @@index([dayId, sortOrder])
+  @@index([category])
+}
+
+model EventParticipant {
+  id        String   @id @default(uuid())
+  eventId   String
+  memberId  String
+  createdAt DateTime @default(now())
+
+  event  ItineraryEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  member TripMember     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, memberId])
+  @@index([memberId])
+}
+
+model Receipt {
+  id                  String        @id @default(uuid())
+  tripId              String
+  uploadedByMemberId  String?
+  imageUrl            String
+  ocrStatus           ReceiptStatus @default(pending)
+  extractedJson       Json?
+  confidenceScore     Decimal?
+  confirmedByMemberId String?
+  confirmedAt         DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  trip              Trip        @relation(fields: [tripId], references: [id])
+  uploadedByMember  TripMember? @relation("ReceiptUploader", fields: [uploadedByMemberId], references: [id])
+  confirmedByMember TripMember? @relation("ReceiptConfirmer", fields: [confirmedByMemberId], references: [id])
+  confirmedExpense  Expense?    @relation("ReceiptConfirmedExpense")
+
+  @@index([tripId])
+  @@index([ocrStatus])
+  @@index([uploadedByMemberId])
+  @@index([confirmedByMemberId])
+}
+
+model Expense {
+  id                String          @id @default(uuid())
+  tripId            String
+  title             String
+  merchant          String?
+  amount            Decimal
+  currency          String
+  category          ExpenseCategory @default(other)
+  expenseDate       DateTime?
+  payerMemberId     String
+  linkedReceiptId   String?         @unique
+  linkedEventId     String?
+  status            ExpenseStatus   @default(active)
+  createdByMemberId String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  trip            Trip                 @relation(fields: [tripId], references: [id])
+  payerMember     TripMember           @relation("ExpensePayer", fields: [payerMemberId], references: [id])
+  createdByMember TripMember?          @relation("ExpenseCreator", fields: [createdByMemberId], references: [id])
+  linkedReceipt   Receipt?             @relation("ReceiptConfirmedExpense", fields: [linkedReceiptId], references: [id])
+  linkedEvent     ItineraryEvent?      @relation(fields: [linkedEventId], references: [id])
+  participants    ExpenseParticipant[]
+
+  @@index([tripId])
+  @@index([payerMemberId])
+  @@index([linkedEventId])
+  @@index([status])
+  @@index([createdByMemberId])
+}
+
+model ExpenseParticipant {
+  id          String   @id @default(uuid())
+  expenseId   String
+  memberId    String
+  shareAmount Decimal
+  createdAt   DateTime @default(now())
+
+  expense Expense    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  member  TripMember @relation(fields: [memberId], references: [id])
+
+  @@unique([expenseId, memberId])
+  @@index([memberId])
+}
+
+model Booking {
+  id                String      @id @default(uuid())
+  tripId            String
+  type              BookingType
+  title             String
+  provider          String?
+  confirmationCode  String?
+  startTime         DateTime?
+  endTime           DateTime?
+  location          String?
+  attachmentUrl     String?
+  linkedEventId     String?
+  createdByMemberId String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  trip            Trip            @relation(fields: [tripId], references: [id])
+  linkedEvent     ItineraryEvent? @relation(fields: [linkedEventId], references: [id])
+  createdByMember TripMember?     @relation("BookingCreator", fields: [createdByMemberId], references: [id])
+
+  @@index([tripId])
+  @@index([type])
+  @@index([linkedEventId])
+  @@index([startTime])
+  @@index([createdByMemberId])
+}
+
+model AIProposal {
+  id                String           @id @default(uuid())
+  tripId            String
+  type              AIProposalType
+  inputText         String?
+  summary           String
+  proposedJson      Json
+  status            AIProposalStatus @default(pending)
+  createdByMemberId String?
+  appliedByMemberId String?
+  appliedAt         DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  trip            Trip        @relation(fields: [tripId], references: [id])
+  createdByMember TripMember? @relation("AIProposalCreator", fields: [createdByMemberId], references: [id])
+  appliedByMember TripMember? @relation("AIProposalApplier", fields: [appliedByMemberId], references: [id])
+
+  @@index([tripId])
+  @@index([type])
+  @@index([status])
+  @@index([createdByMemberId])
+  @@index([appliedByMemberId])
+}

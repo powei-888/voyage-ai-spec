@@ -44,3 +44,52 @@ AI should reduce travel chaos, but users must stay in control.
 - docs/07-roadmap.md
 - AGENTS.md
 - prompts/codex-bootstrap.md
+
+
+## Development
+
+This repository is bootstrapped as an npm workspaces monorepo.
+
+```text
+apps/web          Next.js TypeScript app
+apps/api          NestJS TypeScript API
+packages/shared   Shared TypeScript types and constants
+```
+
+### Prerequisites
+
+- Node.js 20+
+- npm 10+
+- Docker with Docker Compose
+
+### Setup
+
+```bash
+cp .env.example .env
+npm install
+npm run db:up
+npm run prisma:generate
+```
+
+### Run locally
+
+```bash
+npm run dev:web
+npm run dev:api
+```
+
+Default local services:
+
+- Web: http://localhost:3000
+- Web health: http://localhost:3000/health
+- API health: http://localhost:3001/api/health
+- PostgreSQL: localhost:5432
+
+### Checks
+
+```bash
+npm run prisma:validate
+npm run typecheck
+npm run test
+npm run build
+```
