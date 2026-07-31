@@ -13,10 +13,11 @@ export async function addMemberAction(
   try {
     await apiSend(`/trips/${tripId}/members`, "POST", {
       displayName: formString(formData, "displayName"),
-      email: optionalString(formData, "email")
+      email: optionalString(formData, "email"),
+      kind: formString(formData, "kind") || "traveler"
     });
     revalidatePath(path);
-    redirect(`${path}?notice=${encodeURIComponent("已新增成員")}`);
+    redirect(`${path}?notice=${encodeURIComponent("已新增帳務對象")}`);
   } catch (error) {
     redirectWithError(path, error);
   }

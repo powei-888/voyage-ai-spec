@@ -157,7 +157,7 @@ export class ExpensesService {
       select: {
         baseCurrency: true,
         members: {
-          select: { id: true, displayName: true },
+          select: { id: true, displayName: true, kind: true },
           orderBy: { createdAt: "asc" }
         },
         expenses: {
@@ -218,10 +218,11 @@ export class ExpensesService {
             dto.payerMemberId,
             dto.participantMemberIds
           );
-    await this.access.assertMembersBelongToTrip(tripId, [
-      dto.payerMemberId,
-      ...shares.map((share) => share.memberId)
-    ]);
+    await this.access.assertTravelersBelongToTrip(tripId, [dto.payerMemberId]);
+    await this.access.assertMembersBelongToTrip(
+      tripId,
+      shares.map((share) => share.memberId)
+    );
     if (dto.linkedEventId) {
       const event = await this.prisma.itineraryEvent.findFirst({
         where: { id: dto.linkedEventId, tripId },

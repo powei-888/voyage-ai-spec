@@ -1,5 +1,5 @@
 import type { ItineraryEvent, Receipt, TripMember } from "@voyage/shared";
-import { CheckCircle2, ImageIcon, Save, Trash2 } from "lucide-react";
+import { CheckCircle2, ImageIcon, ListTree, Save, Trash2 } from "lucide-react";
 import { deleteReceiptAction, reviewReceiptAction } from "../app/actions/receipt-actions";
 import { apiAssetUrl } from "../lib/api";
 import { titleCase } from "../lib/format";
@@ -23,6 +23,8 @@ export function ReceiptReviewCard({
   if (!extracted) return null;
   const imageUrl = apiAssetUrl(receipt.imageUrl);
   const isImage = receipt.imageMimeType?.startsWith("image/");
+  const travelers = members.filter((member) => member.kind === "traveler");
+  const items = extracted.items ?? [];
 
   return (
     <article className="receipt-review">
@@ -77,8 +79,8 @@ export function ReceiptReviewCard({
           </label>
           <label className="field">
             <span>付款人</span>
-            <select name="payerMemberId" defaultValue={members[0]?.id} required>
-              {members.map((member) => (
+            <select name="payerMemberId" defaultValue={travelers[0]?.id} required>
+              {travelers.map((member) => (
                 <option value={member.id} key={member.id}>{member.displayName}</option>
               ))}
             </select>
@@ -92,6 +94,31 @@ export function ReceiptReviewCard({
               ))}
             </select>
           </label>
+          {items.length > 0 ? (
+            <div className="receipt-items field-span-2">
+              <div className="receipt-items-heading">
+                <span><ListTree size={16} /> 發票明細</span>
+                <small>{items.length} 項</small>
+              </div>
+              <div className="receipt-item-list">
+                {items.map((item, index) => (
+                  <div className="receipt-item-row" key={`${item.description}-${index}`}>
+                    <span>
+                      <strong>{item.description}</strong>
+                      {item.quantity || item.unitPrice ? (
+                        <small>
+                          {item.quantity ? `數量 ${item.quantity}` : ""}
+                          {item.quantity && item.unitPrice ? " · " : ""}
+                          {item.unitPrice ? `單價 ${extracted.currency} ${item.unitPrice}` : ""}
+                        </small>
+                      ) : null}
+                    </span>
+                    <b>{extracted.currency} {item.amount}</b>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <ExpenseSplitFields members={members} />
           <div className="form-actions field-span-2">
             <PendingButton className="button button-secondary" name="intent" value="save" type="submit" pendingLabel="儲存中…">

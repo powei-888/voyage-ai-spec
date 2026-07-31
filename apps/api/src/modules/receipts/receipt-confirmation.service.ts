@@ -49,10 +49,11 @@ export class ReceiptConfirmationService {
           dto.payerMemberId,
           dto.participantMemberIds ?? []
         );
-    await this.access.assertMembersBelongToTrip(tripId, [
-      dto.payerMemberId,
-      ...shares.map((share) => share.memberId)
-    ]);
+    await this.access.assertTravelersBelongToTrip(tripId, [dto.payerMemberId]);
+    await this.access.assertMembersBelongToTrip(
+      tripId,
+      shares.map((share) => share.memberId)
+    );
 
     try {
       const expenseId = await this.prisma.$transaction(

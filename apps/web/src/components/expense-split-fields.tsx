@@ -15,7 +15,9 @@ export function ExpenseSplitFields({
   );
   const selected = new Set(
     expense?.participants.map((participant) => participant.memberId) ||
-      members.map((member) => member.id)
+      members
+        .filter((member) => member.kind === "traveler")
+        .map((member) => member.id)
   );
   const shares = new Map(
     expense?.participants.map((participant) => [
@@ -59,7 +61,10 @@ export function ExpenseSplitFields({
                 value={member.id}
                 defaultChecked={selected.has(member.id)}
               />
-              {member.displayName}
+              <span>
+                {member.displayName}
+                {member.kind === "external" ? <small className="party-kind">代購</small> : null}
+              </span>
             </span>
             {method === "custom" ? (
               <input

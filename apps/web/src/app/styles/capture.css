@@ -93,6 +93,64 @@
   padding: 20px;
 }
 
+.receipt-items {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.receipt-items-heading,
+.receipt-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.receipt-items-heading {
+  padding: 9px 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.receipt-items-heading span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.receipt-item-row {
+  min-height: 46px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.receipt-item-row > span,
+.receipt-item-row strong,
+.receipt-item-row small {
+  display: block;
+}
+
+.receipt-item-row > span {
+  min-width: 0;
+}
+
+.receipt-item-row strong {
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+}
+
+.receipt-item-row small {
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: 0.65rem;
+}
+
+.receipt-item-row b {
+  flex: 0 0 auto;
+  font-size: 0.73rem;
+}
+
 .state-dot {
   width: 9px;
   height: 9px;
@@ -177,6 +235,11 @@
 .role-owner {
   background: var(--gold-soft);
   color: #805700;
+}
+
+.role-external {
+  background: var(--coral-soft);
+  color: #8b3f36;
 }
 
 .proposal-heading time {

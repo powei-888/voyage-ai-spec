@@ -17,6 +17,11 @@ enum TripRole {
   member
 }
 
+enum TripMemberKind {
+  traveler
+  external
+}
+
 enum EventCategory {
   attraction
   restaurant
@@ -140,14 +145,15 @@ model Trip {
 }
 
 model TripMember {
-  id          String    @id @default(uuid())
+  id          String         @id @default(uuid())
   tripId      String
   userId      String?
   displayName String
-  role        TripRole  @default(member)
+  role        TripRole       @default(member)
+  kind        TripMemberKind @default(traveler)
   joinedAt    DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   trip Trip  @relation(fields: [tripId], references: [id])
   user User? @relation(fields: [userId], references: [id])
@@ -169,6 +175,7 @@ model TripMember {
   @@unique([tripId, userId])
   @@index([tripId])
   @@index([userId])
+  @@index([tripId, kind])
   @@index([tripId, displayName])
 }
 

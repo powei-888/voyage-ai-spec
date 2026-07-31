@@ -42,6 +42,7 @@ export type TripMember = {
   userId: string | null;
   displayName: string;
   role: "owner" | "member";
+  kind: "traveler" | "external";
   joinedAt: string | null;
   user?: { id: string; email: string; avatarUrl: string | null } | null;
 };
@@ -109,6 +110,7 @@ export type ExpenseBalances = {
   members: Array<{
     memberId: string;
     displayName: string;
+    kind: "traveler" | "external";
     paidAmount: string;
     shareAmount: string;
     balance: string;
@@ -118,6 +120,18 @@ export type ExpenseBalances = {
     toMemberId: string;
     amount: string;
   }>;
+  externalReceivables: Array<{
+    memberId: string;
+    displayName: string;
+    amount: string;
+  }>;
+};
+
+export type ReceiptLineItem = {
+  description: string;
+  quantity: string | null;
+  unitPrice: string | null;
+  amount: string;
 };
 
 export type Settlement = {
@@ -142,6 +156,7 @@ export type ReceiptExtraction = {
   date: string;
   category: string;
   confidenceScore: number;
+  items?: ReceiptLineItem[];
 };
 
 export type Receipt = {

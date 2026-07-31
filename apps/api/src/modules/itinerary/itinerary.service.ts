@@ -60,7 +60,7 @@ export class ItineraryService {
       throw DomainError.notFound("ITINERARY_DAY_NOT_FOUND", "Itinerary day not found.");
     }
     const participantIds = dto.participantMemberIds ?? [];
-    await this.access.assertMembersBelongToTrip(tripId, participantIds);
+    await this.access.assertTravelersBelongToTrip(tripId, participantIds);
     this.validateTimes(dto.startTime, dto.endTime);
 
     const lastEvent = await this.prisma.itineraryEvent.findFirst({
@@ -107,7 +107,7 @@ export class ItineraryService {
     }
     const participantIds = dto.participantMemberIds;
     if (participantIds) {
-      await this.access.assertMembersBelongToTrip(tripId, participantIds);
+      await this.access.assertTravelersBelongToTrip(tripId, participantIds);
     }
     const startTime =
       dto.startTime === undefined ? existing.startTime?.toISOString() : dto.startTime ?? undefined;

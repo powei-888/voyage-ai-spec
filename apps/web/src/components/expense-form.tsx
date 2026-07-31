@@ -20,6 +20,7 @@ export function ExpenseForm({
   expense?: Expense;
   submitLabel: string;
 }) {
+  const travelers = members.filter((member) => member.kind === "traveler");
   return (
     <form action={action} className="form-grid">
       <label className="field field-span-2">
@@ -62,8 +63,8 @@ export function ExpenseForm({
       </label>
       <label className="field">
         <span>付款人</span>
-        <select name="payerMemberId" defaultValue={expense?.payerMemberId || members[0]?.id} required>
-          {members.map((member) => (
+        <select name="payerMemberId" defaultValue={expense?.payerMemberId || travelers[0]?.id} required>
+          {travelers.map((member) => (
             <option value={member.id} key={member.id}>{member.displayName}</option>
           ))}
         </select>

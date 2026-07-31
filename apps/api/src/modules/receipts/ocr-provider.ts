@@ -1,5 +1,12 @@
 import { ExpenseCategory } from "@prisma/client";
 
+export type ReceiptLineItem = {
+  description: string;
+  quantity: string | null;
+  unitPrice: string | null;
+  amount: string;
+};
+
 export type ReceiptExtraction = {
   merchant: string;
   amount: string;
@@ -7,6 +14,7 @@ export type ReceiptExtraction = {
   date: string;
   category: ExpenseCategory;
   confidenceScore: number;
+  items: ReceiptLineItem[];
 };
 
 export type OcrInput = {

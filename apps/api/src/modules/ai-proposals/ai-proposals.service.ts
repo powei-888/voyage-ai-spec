@@ -1,5 +1,10 @@
 import { HttpStatus, Inject, Injectable } from "@nestjs/common";
-import { AIProposalStatus, ReceiptStatus } from "@prisma/client";
+import {
+  AIProposalStatus,
+  Prisma,
+  ReceiptStatus,
+  TripMemberKind
+} from "@prisma/client";
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
@@ -73,22 +78,34 @@ export class AiProposalsService {
     if (!trip) {
       throw DomainError.notFound("TRIP_NOT_FOUND", "Trip not found.");
     }
-    const [activeExpenseCount, pendingReceiptCount, expenseTotal, categoryTotals] =
-      await Promise.all([
-        this.prisma.expense.count({ where: { tripId, status: "active" } }),
+    const [activeExpenses, pendingReceiptCount] = await Promise.all([
+        this.prisma.expense.findMany({
+          where: { tripId, status: "active" },
+          select: {
+            category: true,
+            participants: {
+              where: { member: { kind: TripMemberKind.traveler } },
+              select: { shareAmount: true }
+            }
+          }
+        }),
         this.prisma.receipt.count({
           where: { tripId, ocrStatus: ReceiptStatus.extracted }
-        }),
-        this.prisma.expense.aggregate({
-          where: { tripId, status: "active" },
-          _sum: { amount: true }
-        }),
-        this.prisma.expense.groupBy({
-          by: ["category"],
-          where: { tripId, status: "active" },
-          _sum: { amount: true }
         })
       ]);
+    const categoryTotals = new Map<string, Prisma.Decimal>();
+    let expenseTotal = new Prisma.Decimal(0);
+    for (const expense of activeExpenses) {
+      const amount = expense.participants.reduce(
+        (sum, participant) => sum.plus(participant.shareAmount),
+        new Prisma.Decimal(0)
+      );
+      expenseTotal = expenseTotal.plus(amount);
+      categoryTotals.set(
+        expense.category,
+        (categoryTotals.get(expense.category) ?? new Prisma.Decimal(0)).plus(amount)
+      );
+    }
     let draft: Awaited<ReturnType<AiProvider["propose"]>>;
     try {
       draft = await this.provider.propose({
@@ -100,14 +117,14 @@ export class AiProposalsService {
             [trip.destinationCity, trip.destinationCountry].filter(Boolean).join(", ") ||
             "未設定目的地",
           eventCount: trip._count.events,
-          activeExpenseCount,
+          activeExpenseCount: activeExpenses.length,
           pendingReceiptCount,
           budgetAmount: trip.budgetAmount?.toString() ?? null,
-          expenseTotal: expenseTotal._sum.amount?.toString() ?? "0",
+          expenseTotal: expenseTotal.toString(),
           baseCurrency: trip.baseCurrency,
-          categoryTotals: categoryTotals.map((item) => ({
-            category: item.category,
-            amount: item._sum.amount?.toString() ?? "0"
+          categoryTotals: [...categoryTotals.entries()].map(([category, amount]) => ({
+            category,
+            amount: amount.toString()
           })),
           days: trip.days.map((day) => ({
             dayIndex: day.dayIndex,

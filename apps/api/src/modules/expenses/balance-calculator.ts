@@ -1,7 +1,11 @@
-import { ExpenseStatus } from "@prisma/client";
+import { ExpenseStatus, TripMemberKind } from "@prisma/client";
 import { fromMinorUnits, toMinorUnits } from "./money";
 
-export type BalanceMember = { id: string; displayName: string };
+export type BalanceMember = {
+  id: string;
+  displayName: string;
+  kind: TripMemberKind;
+};
 export type BalanceExpense = {
   amount: string;
   payerMemberId: string;
@@ -26,6 +30,7 @@ export function calculateBalances(
       {
         memberId: member.id,
         displayName: member.displayName,
+        kind: member.kind,
         paid: 0n,
         share: 0n,
         adjustment: 0n
@@ -54,6 +59,7 @@ export function calculateBalances(
   const balances = [...totals.values()].map((total) => ({
     memberId: total.memberId,
     displayName: total.displayName,
+    kind: total.kind,
     paidAmount: fromMinorUnits(total.paid, currency),
     shareAmount: fromMinorUnits(total.share, currency),
     balance: fromMinorUnits(total.paid - total.share + total.adjustment, currency),
@@ -93,9 +99,21 @@ export function calculateBalances(
     if (debtor.remaining === 0n) debtorIndex += 1;
   }
 
+  const externalReceivables = balances
+    .filter(
+      (item) =>
+        item.kind === TripMemberKind.external && item.balanceMinor < 0n
+    )
+    .map((item) => ({
+      memberId: item.memberId,
+      displayName: item.displayName,
+      amount: fromMinorUnits(-item.balanceMinor, currency)
+    }));
+
   return {
     currency,
     members: balances.map(({ balanceMinor: _balanceMinor, ...item }) => item),
-    settlements
+    settlements,
+    externalReceivables
   };
 }

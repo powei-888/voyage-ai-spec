@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { TripRole } from "@prisma/client";
+import { TripMemberKind, TripRole } from "@prisma/client";
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
@@ -19,16 +19,24 @@ export class MembersService {
       include: {
         user: { select: { id: true, email: true, avatarUrl: true } }
       },
-      orderBy: [{ role: "asc" }, { createdAt: "asc" }]
+      orderBy: [{ kind: "asc" }, { role: "asc" }, { createdAt: "asc" }]
     });
   }
 
   async add(userId: string, tripId: string, dto: AddMemberDto) {
     await this.access.requireOwner(tripId, userId);
     const email = dto.email?.trim().toLowerCase();
+    const kind = dto.kind ?? TripMemberKind.traveler;
+    if (kind === TripMemberKind.external && email) {
+      throw new DomainError(
+        "EXTERNAL_MEMBER_EMAIL_NOT_ALLOWED",
+        "External expense parties cannot have login email addresses.",
+        HttpStatus.UNPROCESSABLE_ENTITY
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
-      const user = email
+      const user = kind === TripMemberKind.traveler && email
         ? await tx.user.upsert({
             where: { email },
             update: {},
@@ -55,6 +63,7 @@ export class MembersService {
           userId: user?.id,
           displayName: dto.displayName.trim(),
           role: TripRole.member,
+          kind,
           joinedAt: user ? new Date() : null
         },
         include: { user: true }
@@ -81,6 +90,17 @@ export class MembersService {
         "OWNER_ROLE_REQUIRED",
         "The trip creator must remain an owner.",
         HttpStatus.CONFLICT
+      );
+    }
+    if (
+      member.kind === TripMemberKind.external &&
+      dto.role &&
+      dto.role !== TripRole.member
+    ) {
+      throw new DomainError(
+        "EXTERNAL_MEMBER_ROLE_INVALID",
+        "External expense parties cannot receive trip roles.",
+        HttpStatus.UNPROCESSABLE_ENTITY
       );
     }
 

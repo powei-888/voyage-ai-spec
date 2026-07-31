@@ -52,6 +52,7 @@ describe("ReceiptConfirmationService", () => {
     };
     const access = {
       requireMember: jest.fn().mockResolvedValue({ id: "member-1" }),
+      assertTravelersBelongToTrip: jest.fn().mockResolvedValue(undefined),
       assertMembersBelongToTrip: jest.fn().mockResolvedValue(undefined)
     };
     const service = new ReceiptConfirmationService(

@@ -2,7 +2,12 @@ import { Injectable } from "@nestjs/common";
 import { ExpenseCategory } from "@prisma/client";
 import { LocalInferenceCoordinator } from "../../infra/local-model/local-inference-coordinator";
 import { OllamaClient } from "../../infra/local-model/ollama-client";
-import { OcrInput, OcrProvider, ReceiptExtraction } from "./ocr-provider";
+import {
+  OcrInput,
+  OcrProvider,
+  ReceiptExtraction,
+  ReceiptLineItem
+} from "./ocr-provider";
 
 type RawOcrResult = {
   text?: string;
@@ -29,6 +34,32 @@ function normalizeAmount(value: unknown): string {
   const match = String(value ?? "").replace(/,/g, "").match(/\d+(?:\.\d{1,3})?/);
   if (!match || Number(match[0]) <= 0) return "0";
   return match[0];
+}
+
+function normalizeOptionalNumber(value: unknown): string | null {
+  const match = String(value ?? "").replace(/,/g, "").match(/\d+(?:\.\d{1,3})?/);
+  if (!match || Number(match[0]) <= 0) return null;
+  return match[0];
+}
+
+function normalizeLineItems(value: unknown): ReceiptLineItem[] {
+  if (!Array.isArray(value)) return [];
+  const items: ReceiptLineItem[] = [];
+  for (const candidate of value.slice(0, 40)) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const raw = candidate as Record<string, unknown>;
+    const description =
+      typeof raw.description === "string" ? raw.description.trim().slice(0, 160) : "";
+    const amount = normalizeAmount(raw.amount);
+    if (!description || amount === "0") continue;
+    items.push({
+      description,
+      quantity: normalizeOptionalNumber(raw.quantity),
+      unitPrice: normalizeOptionalNumber(raw.unitPrice),
+      amount
+    });
+  }
+  return items;
 }
 
 function normalizeCurrency(value: unknown, fallback: string): string {
@@ -102,7 +133,8 @@ export class LocalOcrProvider implements OcrProvider {
           "你是收據欄位擷取器，使用繁體中文理解收據。",
           "優先選擇實際應付或總計金額，不要選小計、稅額、找零或單項價格。",
           "只輸出 JSON：merchant 字串、amount 正數字串、currency 三碼、date YYYY-MM-DD、",
-          "category 必須是 food/hotel/transport/shopping/ticket/activity/other、confidenceScore 0 到 1。",
+          "category 必須是 food/hotel/transport/shopping/ticket/activity/other、confidenceScore 0 到 1、",
+          "items 陣列，每項含 description、quantity、unitPrice、amount；items 只列商品或服務，不列小計、總計、付款與找零。",
           "看不清楚的欄位使用提示中的 fallback，不得猜測不存在的商家或金額。"
         ].join("\n"),
         prompt: JSON.stringify({
@@ -116,7 +148,7 @@ export class LocalOcrProvider implements OcrProvider {
         images: input.mimeType.startsWith("image/")
           ? [input.buffer.toString("base64")]
           : undefined,
-        maxTokens: 450
+        maxTokens: 900
       });
 
       const amount = normalizeAmount(response.amount);
@@ -133,7 +165,8 @@ export class LocalOcrProvider implements OcrProvider {
           response.confidenceScore,
           amount,
           ocrConfidence
-        )
+        ),
+        items: normalizeLineItems(response.items)
       };
     });
   }

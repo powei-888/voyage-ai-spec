@@ -1,5 +1,10 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { Prisma, ReceiptStatus, TripStatus } from "@prisma/client";
+import {
+  Prisma,
+  ReceiptStatus,
+  TripMemberKind,
+  TripStatus
+} from "@prisma/client";
 import { MAX_TRIP_DAYS } from "../../common/constants";
 import { enumerateDates, parseDateOnly } from "../../common/date-utils";
 import { DomainError } from "../../common/domain-error";
@@ -11,7 +16,7 @@ const tripInclude = {
   owner: { select: { id: true, displayName: true, email: true } },
   _count: {
     select: {
-      members: true,
+      members: { where: { kind: TripMemberKind.traveler } },
       events: true,
       expenses: true,
       receipts: true,
@@ -180,7 +185,7 @@ export class TripsService {
     const tomorrow = new Date(today);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-    const [todayEvents, upcomingEvent, expenseTotal, pendingReceipts, pendingProposals, upcomingBookings] =
+    const [todayEvents, upcomingEvent, travelerExpenseTotal, pendingReceipts, pendingProposals, upcomingBookings] =
       await Promise.all([
         this.prisma.itineraryEvent.findMany({
           where: { tripId, day: { date: { gte: today, lt: tomorrow } } },
@@ -191,9 +196,12 @@ export class TripsService {
           where: { tripId, startTime: { gte: now } },
           orderBy: { startTime: "asc" }
         }),
-        this.prisma.expense.aggregate({
-          where: { tripId, status: "active" },
-          _sum: { amount: true }
+        this.prisma.expenseParticipant.aggregate({
+          where: {
+            expense: { tripId, status: "active" },
+            member: { kind: TripMemberKind.traveler }
+          },
+          _sum: { shareAmount: true }
         }),
         this.prisma.receipt.count({
           where: { tripId, ocrStatus: ReceiptStatus.extracted }
@@ -210,7 +218,8 @@ export class TripsService {
       trip,
       todayEvents,
       upcomingEvent,
-      recordedExpenseAmount: expenseTotal._sum.amount ?? new Prisma.Decimal(0),
+      recordedExpenseAmount:
+        travelerExpenseTotal._sum.shareAmount ?? new Prisma.Decimal(0),
       pendingReceipts,
       pendingProposals,
       upcomingBookings

@@ -222,6 +222,23 @@
   font-size: 0.76rem;
 }
 
+.party-kind {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--coral);
+  font-size: 0.6rem;
+  font-weight: 750;
+}
+
+.proxy-share-summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--coral);
+  font-size: 0.69rem;
+  font-weight: 650;
+}
+
 .positive {
   color: var(--teal);
 }

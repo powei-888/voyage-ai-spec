@@ -28,7 +28,21 @@ describe("LocalOcrProvider", () => {
         currency: "twd",
         date: "2026-07-31",
         category: "咖啡",
-        confidenceScore: 0.9
+        confidenceScore: 0.9,
+        items: [
+          {
+            description: "手沖咖啡",
+            quantity: "2 杯",
+            unitPrice: "TWD 200",
+            amount: "TWD 400"
+          },
+          {
+            description: "總計",
+            quantity: null,
+            unitPrice: null,
+            amount: "not visible"
+          }
+        ]
       })
     } as unknown as OllamaClient;
     const provider = new LocalOcrProvider(ollama, new LocalInferenceCoordinator());
@@ -47,7 +61,15 @@ describe("LocalOcrProvider", () => {
       currency: "TWD",
       date: "2026-07-31",
       category: ExpenseCategory.food,
-      confidenceScore: 0.8500000000000001
+      confidenceScore: 0.8500000000000001,
+      items: [
+        {
+          description: "手沖咖啡",
+          quantity: "2",
+          unitPrice: "200",
+          amount: "400"
+        }
+      ]
     });
   });
 
@@ -76,6 +98,7 @@ describe("LocalOcrProvider", () => {
 
     expect(result.amount).toBe("300");
     expect(result.category).toBe(ExpenseCategory.shopping);
+    expect(result.items).toEqual([]);
     expect(ollama.chatJson).toHaveBeenCalledWith(
       expect.objectContaining({ images: [Buffer.from("image").toString("base64")] })
     );

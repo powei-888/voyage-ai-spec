@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { TripMember, TripRole } from "@prisma/client";
+import { TripMember, TripMemberKind, TripRole } from "@prisma/client";
 import { PrismaService } from "../infra/database/prisma.service";
 import {
   DEFAULT_DEMO_USER_EMAIL,
@@ -31,7 +31,7 @@ export class TripAccessService {
 
   async requireMember(tripId: string, userId: string): Promise<TripMember> {
     const member = await this.prisma.tripMember.findFirst({
-      where: { tripId, userId }
+      where: { tripId, userId, kind: TripMemberKind.traveler }
     });
     if (!member) {
       throw DomainError.forbidden(
@@ -65,6 +65,27 @@ export class TripAccessService {
       throw new DomainError(
         "INVALID_TRIP_MEMBER",
         "One or more selected members do not belong to this trip.",
+        HttpStatus.UNPROCESSABLE_ENTITY
+      );
+    }
+  }
+
+  async assertTravelersBelongToTrip(
+    tripId: string,
+    memberIds: string[]
+  ): Promise<void> {
+    const uniqueIds = [...new Set(memberIds)];
+    const count = await this.prisma.tripMember.count({
+      where: {
+        tripId,
+        id: { in: uniqueIds },
+        kind: TripMemberKind.traveler
+      }
+    });
+    if (count !== uniqueIds.length) {
+      throw new DomainError(
+        "TRAVELER_REQUIRED",
+        "Only travelers can be selected for this role.",
         HttpStatus.UNPROCESSABLE_ENTITY
       );
     }

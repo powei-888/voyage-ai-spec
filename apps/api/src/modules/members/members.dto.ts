@@ -1,5 +1,5 @@
 import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from "class-validator";
-import { TripRole } from "@prisma/client";
+import { TripMemberKind, TripRole } from "@prisma/client";
 
 export class AddMemberDto {
   @IsString()
@@ -11,6 +11,10 @@ export class AddMemberDto {
   @IsEmail()
   @MaxLength(160)
   email?: string;
+
+  @IsOptional()
+  @IsEnum(TripMemberKind)
+  kind: TripMemberKind = TripMemberKind.traveler;
 }
 
 export class UpdateMemberDto {

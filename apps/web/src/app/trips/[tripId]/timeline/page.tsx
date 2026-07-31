@@ -47,6 +47,7 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
     apiGet<ItineraryDay[]>(`/trips/${tripId}/itinerary-days`),
     apiGet<TripMember[]>(`/trips/${tripId}/members`)
   ]);
+  const travelers = members.filter((member) => member.kind === "traveler");
   const selectedDay = days.find((day) => day.id === query.day) || days[0];
   const orderedIds = selectedDay?.events.map((event) => event.id) || [];
 
@@ -188,7 +189,7 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
                           </label>
                           <fieldset className="check-group field-span-2">
                             <legend>參與成員</legend>
-                            {members.map((member) => (
+                            {travelers.map((member) => (
                               <label key={member.id}>
                                 <input
                                   type="checkbox"
@@ -275,7 +276,7 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
               <label className="field field-span-2"><span>備註</span><textarea name="notes" rows={3} /></label>
               <fieldset className="check-group field-span-2">
                 <legend>參與成員</legend>
-                {members.map((member) => (
+                {travelers.map((member) => (
                   <label key={member.id}>
                     <input type="checkbox" name="participantMemberIds" value={member.id} />
                     <span>{member.displayName}</span>

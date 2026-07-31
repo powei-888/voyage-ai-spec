@@ -18,7 +18,8 @@ export class MockOcrProvider implements OcrProvider {
       currency: input.fallbackCurrency,
       date: input.fallbackDate,
       category: ExpenseCategory.food,
-      confidenceScore: 0.94
+      confidenceScore: 0.94,
+      items: []
     };
   }
 }

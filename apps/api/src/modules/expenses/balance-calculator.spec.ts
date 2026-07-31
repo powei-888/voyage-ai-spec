@@ -1,11 +1,11 @@
-import { ExpenseStatus } from "@prisma/client";
+import { ExpenseStatus, TripMemberKind } from "@prisma/client";
 import { calculateBalances } from "./balance-calculator";
 
 describe("calculateBalances", () => {
   const members = [
-    { id: "amy", displayName: "Amy" },
-    { id: "tom", displayName: "Tom" },
-    { id: "wei", displayName: "Wei" }
+    { id: "amy", displayName: "Amy", kind: TripMemberKind.traveler },
+    { id: "tom", displayName: "Tom", kind: TripMemberKind.traveler },
+    { id: "wei", displayName: "Wei", kind: TripMemberKind.traveler }
   ];
 
   const expenses = [
@@ -37,6 +37,7 @@ describe("calculateBalances", () => {
       {
         memberId: "amy",
         displayName: "Amy",
+        kind: TripMemberKind.traveler,
         paidAmount: "1200",
         shareAmount: "1600",
         balance: "-400"
@@ -44,6 +45,7 @@ describe("calculateBalances", () => {
       {
         memberId: "tom",
         displayName: "Tom",
+        kind: TripMemberKind.traveler,
         paidAmount: "0",
         shareAmount: "1600",
         balance: "-1600"
@@ -51,6 +53,7 @@ describe("calculateBalances", () => {
       {
         memberId: "wei",
         displayName: "Wei",
+        kind: TripMemberKind.traveler,
         paidAmount: "3000",
         shareAmount: "1000",
         balance: "2000"
@@ -60,6 +63,7 @@ describe("calculateBalances", () => {
       { fromMemberId: "amy", toMemberId: "wei", amount: "400" },
       { fromMemberId: "tom", toMemberId: "wei", amount: "1600" }
     ]);
+    expect(result.externalReceivables).toEqual([]);
   });
 
   it("subtracts completed repayments from the remaining balances", () => {
@@ -90,5 +94,42 @@ describe("calculateBalances", () => {
 
     expect(result.members.every((member) => member.balance === "0")).toBe(true);
     expect(result.settlements).toEqual([]);
+  });
+
+  it("tracks an external proxy purchase as a receivable and repayment", () => {
+    const result = calculateBalances(
+      [
+        {
+          id: "buyer",
+          displayName: "Buyer",
+          kind: TripMemberKind.traveler
+        },
+        {
+          id: "customer",
+          displayName: "External customer",
+          kind: TripMemberKind.external
+        }
+      ],
+      [
+        {
+          amount: "500",
+          payerMemberId: "buyer",
+          status: ExpenseStatus.active,
+          participants: [{ memberId: "customer", shareAmount: "500" }]
+        }
+      ],
+      "TWD"
+    );
+
+    expect(result.externalReceivables).toEqual([
+      {
+        memberId: "customer",
+        displayName: "External customer",
+        amount: "500.00"
+      }
+    ]);
+    expect(result.settlements).toEqual([
+      { fromMemberId: "customer", toMemberId: "buyer", amount: "500.00" }
+    ]);
   });
 });

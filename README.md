@@ -17,8 +17,9 @@ AI should reduce travel chaos, but users must stay in control.
 - Day-by-day timeline
 - Expense records
 - Equal and custom split calculation
+- External proxy-purchase parties, receivables, and repayment tracking
 - Completed repayment records and remaining balance calculation
-- On-premise receipt OCR and Qwen vision confirmation flow
+- On-premise receipt OCR with line-item extraction and Qwen vision confirmation
 - Booking hub
 - AI proposal review and decision lifecycle
 - Local account authentication with expiring server sessions
@@ -107,6 +108,8 @@ Root scripts load `.env` through `dotenv-cli`. If port 5432 is occupied, update 
 
 Receipt images use EasyOCR text plus Qwen vision. PDF receipts use CUBI parser text plus Qwen. Both paths create editable receipt drafts and require user confirmation before an expense is created.
 
+Trip parties are separated into travelers and external expense parties. External parties cannot sign in, join itinerary events, or pay an expense. They can receive custom expense shares, appear in external receivables, and record repayments to a traveler. Their shares are excluded from trip budget totals and AI budget analysis.
+
 `LOCAL_LLM_KEEP_ALIVE=0` unloads Qwen after each request so EasyOCR and the language model can share a 16 GB GPU. Voyage serializes its own local inference work; when EasyOCR is temporarily unavailable, image receipts fall back to Qwen vision. Set either provider to `mock` only for isolated development without the local model services.
 
 The API health response includes the selected AI provider, OCR provider, and model name.
@@ -167,7 +170,7 @@ npm run test
 npm run build
 ```
 
-API tests cover health, password hashing, deterministic equal and custom splitting, payer exclusion, rounding, completed repayments, cross-day event movement, voided expenses, receipt confirmation idempotency, and AI proposal state transitions. Web tests cover date, money, and enum formatting.
+API tests cover health, password hashing, deterministic equal and custom splitting, payer exclusion, rounding, external proxy-purchase receivables, completed repayments, cross-day event movement, voided expenses, receipt line-item normalization, receipt confirmation idempotency, and AI proposal state transitions. Web tests cover date, money, and enum formatting.
 
 ### Main API routes
 
@@ -199,6 +202,6 @@ POST            /api/trips/:tripId/ai-proposals/:proposalId/reject
 
 ### Receipt and AI boundaries
 
-Receipt upload accepts JPEG, PNG, WebP, or PDF files up to 8 MB. Local OCR and Qwen create an editable draft; only explicit confirmation creates the canonical expense. `Expense.linkedReceiptId` is the single unique receipt-to-expense relation, so repeated confirmation returns the same expense.
+Receipt upload accepts JPEG, PNG, WebP, or PDF files up to 8 MB. Local OCR and Qwen create an editable draft with merchant, total, date, category, and normalized purchase line items. Users can review those items and assign custom shares to travelers or external proxy-purchase parties; only explicit confirmation creates the canonical expense. `Expense.linkedReceiptId` is the single unique receipt-to-expense relation, so repeated confirmation returns the same expense.
 
 AI requests create stored proposals. Accept and reject are explicit state transitions. The local Qwen provider never calls an external API or mutates trip data directly; prompts include the current itinerary, budget, category totals, and pending receipt count.

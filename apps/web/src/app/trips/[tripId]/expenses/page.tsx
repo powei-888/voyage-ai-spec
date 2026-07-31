@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   ReceiptText,
+  ShoppingBag,
   Trash2
 } from "lucide-react";
 import {
@@ -50,8 +51,13 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
   ]);
   const events = days.flatMap((day) => day.events);
   const names = new Map(members.map((member) => [member.id, member.displayName]));
+  const memberKinds = new Map(members.map((member) => [member.id, member.kind]));
   const activeExpenses = expenses.filter((expense) => expense.status === "active");
   const total = activeExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const externalReceivableTotal = balances.externalReceivables.reduce(
+    (sum, item) => sum + Number(item.amount),
+    0
+  );
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -68,9 +74,14 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
 
       <section className="money-summary">
         <div className="money-total">
-          <span>已記錄總額</span>
+          <span>已記錄付款總額</span>
           <strong>{formatMoney(total, trip.baseCurrency)}</strong>
-          <small>{activeExpenses.length} 筆有效支出 · {settlements.length} 筆還款</small>
+          <small>
+            {activeExpenses.length} 筆有效支出 · {settlements.length} 筆還款
+            {externalReceivableTotal > 0
+              ? ` · 外部應收 ${formatMoney(externalReceivableTotal, trip.baseCurrency)}`
+              : ""}
+          </small>
         </div>
         <div className="balance-list">
           {balances.members.map((member) => {
@@ -78,7 +89,13 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
             return (
               <div key={member.memberId}>
                 <span className="member-avatar">{member.displayName.slice(0, 2).toUpperCase()}</span>
-                <span><strong>{member.displayName}</strong><small>已支付 {formatMoney(member.paidAmount, balances.currency)}</small></span>
+                <span>
+                  <strong>{member.displayName}</strong>
+                  <small>
+                    {member.kind === "external" ? "外部代購對象" : "旅伴"}
+                    {" · "}已支付 {formatMoney(member.paidAmount, balances.currency)}
+                  </small>
+                </span>
                 <b className={numeric > 0 ? "positive" : numeric < 0 ? "negative" : ""}>
                   {numeric > 0 ? "+" : ""}{formatMoney(member.balance, balances.currency)}
                 </b>
@@ -87,6 +104,24 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
           })}
         </div>
       </section>
+
+      {balances.externalReceivables.length > 0 ? (
+        <section className="content-section">
+          <div className="section-heading">
+            <div><p className="eyebrow">代購帳款</p><h2>外部應收</h2></div>
+            <ShoppingBag size={18} />
+          </div>
+          <div className="simple-list">
+            {balances.externalReceivables.map((item) => (
+              <article key={item.memberId}>
+                <span className="state-dot state-processing" />
+                <div><strong>{item.displayName}</strong><small>尚未收回</small></div>
+                <b>{formatMoney(item.amount, balances.currency)}</b>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="content-section">
         <div className="section-heading">
@@ -152,7 +187,11 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
           <EmptyState icon={CreditCard} title="尚無支出" body="手動新增支出，或上傳收據建立紀錄。" />
         ) : (
           <div className="expense-list">
-            {expenses.map((expense) => (
+            {expenses.map((expense) => {
+              const externalShares = expense.participants.filter(
+                (participant) => memberKinds.get(participant.memberId) === "external"
+              );
+              return (
               <article className={`expense-row ${expense.status === "voided" ? "is-voided" : ""}`} key={expense.id}>
                 <span className="expense-icon"><CreditCard size={17} /></span>
                 <div className="expense-main">
@@ -160,6 +199,14 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                     <span className="category-label">{titleCase(expense.category)} · {expense.splitMethod === "custom" ? "自訂分攤" : "平均分攤"}</span>
                     <h3>{expense.title}</h3>
                     <p>{expense.merchant || "未填商家"} · 付款人：{expense.payerMember.displayName}</p>
+                    {externalShares.length > 0 ? (
+                      <p className="proxy-share-summary">
+                        <ShoppingBag size={13} />
+                        {externalShares.map((share) =>
+                          `${share.member.displayName} ${formatMoney(share.shareAmount, expense.currency)}`
+                        ).join("、")}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="expense-amount">
                     <strong>{formatMoney(expense.amount, expense.currency)}</strong>
@@ -188,7 +235,8 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                   </ConfirmForm>
                 ) : null}
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
