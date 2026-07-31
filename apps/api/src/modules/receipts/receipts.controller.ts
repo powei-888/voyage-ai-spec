@@ -15,6 +15,7 @@ import { ok } from "../../common/api-response";
 import { CurrentUserId } from "../../common/current-user.decorator";
 import { DomainError } from "../../common/domain-error";
 import { ReceiptConfirmationService } from "./receipt-confirmation.service";
+import { inlineReceiptContentDisposition } from "./receipt-content-disposition";
 import { ConfirmReceiptDto, UpdateReceiptDraftDto } from "./receipts.dto";
 import { ReceiptsService } from "./receipts.service";
 
@@ -88,7 +89,7 @@ export class ReceiptsController {
   ) {
     const image = await this.receipts.readImage(userId, tripId, receiptId);
     reply.header("Content-Type", image.mimeType);
-    reply.header("Content-Disposition", `inline; filename="${image.originalName.replace(/"/g, "")}"`);
+    reply.header("Content-Disposition", inlineReceiptContentDisposition(image.originalName));
     return new StreamableFile(image.buffer);
   }
 
