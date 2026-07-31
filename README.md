@@ -111,6 +111,28 @@ Receipt images use EasyOCR text plus Qwen vision. PDF receipts use CUBI parser t
 
 The API health response includes the selected AI provider, OCR provider, and model name.
 
+### Persistent LAN service
+
+Production builds can run as systemd user services on ports 3100 and 3101. The API unit stores receipt files under `~/.local/share/voyage-ai/uploads`, so uploads survive reboots.
+
+```bash
+npm run build
+mkdir -p ~/.config/systemd/user ~/.config/voyage-ai
+cp deploy/systemd/voyage-api.service deploy/systemd/voyage-web.service ~/.config/systemd/user/
+cp deploy/systemd/voyage.env.example ~/.config/voyage-ai/voyage.env
+# Replace YOUR_LAN_IP in ~/.config/voyage-ai/voyage.env before starting.
+systemctl --user daemon-reload
+systemctl --user enable --now voyage-api.service voyage-web.service
+```
+
+Enable user lingering once so the services start without an interactive login. This may require administrator authorization:
+
+```bash
+loginctl enable-linger "$USER"
+```
+
+Check the running deployment with `systemctl --user status voyage-api.service voyage-web.service` and `curl http://127.0.0.1:3101/api/health`.
+
 ### Local authentication
 
 The API stores scrypt password hashes and opaque, hashed session tokens. The web app keeps the session token in an HttpOnly cookie and forwards it as a Bearer token from server-side requests. Trip-scoped requests still verify membership, and owner-only operations remain protected.
