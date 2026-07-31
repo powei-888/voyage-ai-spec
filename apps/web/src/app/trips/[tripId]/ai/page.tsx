@@ -1,7 +1,9 @@
 import type { AIProposal } from "@voyage/shared";
 import { Bot, Check, Plus, Sparkles, X } from "lucide-react";
 import { createProposalAction, decideProposalAction } from "../../../actions/proposal-actions";
+import { ConfirmForm } from "../../../../components/confirm-form";
 import { EmptyState } from "../../../../components/empty-state";
+import { PendingButton } from "../../../../components/pending-button";
 import { Notice } from "../../../../components/notice";
 import { PageHeading } from "../../../../components/page-heading";
 import { apiGet } from "../../../../lib/api";
@@ -70,12 +72,12 @@ export default async function AiPage({ params, searchParams }: PageProps) {
                   {proposal.inputText ? <p className="proposal-prompt">{proposal.inputText}</p> : null}
                   <ProposalDetails value={proposal.proposedJson} />
                   <div className="proposal-actions">
-                    <form action={decideProposalAction.bind(null, tripId, proposal.id, "accept")}>
-                      <button className="button button-primary" type="submit"><Check size={16} /> 接受</button>
-                    </form>
-                    <form action={decideProposalAction.bind(null, tripId, proposal.id, "reject")}>
-                      <button className="button button-secondary" type="submit"><X size={16} /> 拒絕</button>
-                    </form>
+                    <ConfirmForm action={decideProposalAction.bind(null, tripId, proposal.id, "accept")} message="要接受這份分析提案嗎？">
+                      <PendingButton className="button button-primary" type="submit" pendingLabel="接受中…"><Check size={16} /> 接受</PendingButton>
+                    </ConfirmForm>
+                    <ConfirmForm action={decideProposalAction.bind(null, tripId, proposal.id, "reject")} message="要拒絕這份提案嗎？">
+                      <PendingButton className="button button-secondary" type="submit" pendingLabel="處理中…"><X size={16} /> 拒絕</PendingButton>
+                    </ConfirmForm>
                   </div>
                 </div>
               </article>
@@ -94,7 +96,7 @@ export default async function AiPage({ params, searchParams }: PageProps) {
             </select>
           </label>
           <label className="field field-span-2"><span>補充情境或需求</span><textarea name="inputText" rows={4} maxLength={2000} placeholder="檢查目前的行程是否安排得太緊湊。" /></label>
-          <div className="form-actions field-span-2"><button className="button button-primary" type="submit"><Sparkles size={16} /> 產生分析草稿</button></div>
+          <div className="form-actions field-span-2"><PendingButton className="button button-primary" type="submit" pendingLabel="分析中…"><Sparkles size={16} /> 產生分析草稿</PendingButton></div>
         </form>
       </section>
 

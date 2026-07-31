@@ -2,6 +2,7 @@ import type { ItineraryDay, Receipt, TripMember } from "@voyage/shared";
 import { CheckCircle2, ReceiptText, Upload } from "lucide-react";
 import { uploadReceiptAction } from "../../../actions/receipt-actions";
 import { EmptyState } from "../../../../components/empty-state";
+import { PendingButton } from "../../../../components/pending-button";
 import { Notice } from "../../../../components/notice";
 import { PageHeading } from "../../../../components/page-heading";
 import { ReceiptReviewCard } from "../../../../components/receipt-review-card";
@@ -64,7 +65,7 @@ export default async function ReceiptsPage({ params, searchParams }: PageProps) 
             <span><strong>選擇收據檔案</strong><small>JPEG、PNG、WebP 或 PDF，檔案上限 8 MB</small></span>
             <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" required />
           </label>
-          <button className="button button-primary" type="submit"><ReceiptText size={17} /> 建立辨識草稿</button>
+          <PendingButton className="button button-primary" type="submit" pendingLabel="辨識中…"><ReceiptText size={17} /> 建立辨識草稿</PendingButton>
         </form>
       </section>
 

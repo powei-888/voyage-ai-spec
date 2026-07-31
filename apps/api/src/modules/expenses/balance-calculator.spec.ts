@@ -8,32 +8,30 @@ describe("calculateBalances", () => {
     { id: "wei", displayName: "Wei" }
   ];
 
+  const expenses = [
+    {
+      amount: "3000",
+      payerMemberId: "wei",
+      status: ExpenseStatus.active,
+      participants: [
+        { memberId: "amy", shareAmount: "1000" },
+        { memberId: "tom", shareAmount: "1000" },
+        { memberId: "wei", shareAmount: "1000" }
+      ]
+    },
+    {
+      amount: "1200",
+      payerMemberId: "amy",
+      status: ExpenseStatus.active,
+      participants: [
+        { memberId: "amy", shareAmount: "600" },
+        { memberId: "tom", shareAmount: "600" }
+      ]
+    }
+  ];
+
   it("aggregates multiple expenses and produces settlements", () => {
-    const result = calculateBalances(
-      members,
-      [
-        {
-          amount: "3000",
-          payerMemberId: "wei",
-          status: ExpenseStatus.active,
-          participants: [
-            { memberId: "amy", shareAmount: "1000" },
-            { memberId: "tom", shareAmount: "1000" },
-            { memberId: "wei", shareAmount: "1000" }
-          ]
-        },
-        {
-          amount: "1200",
-          payerMemberId: "amy",
-          status: ExpenseStatus.active,
-          participants: [
-            { memberId: "amy", shareAmount: "600" },
-            { memberId: "tom", shareAmount: "600" }
-          ]
-        }
-      ],
-      "JPY"
-    );
+    const result = calculateBalances(members, expenses, "JPY");
 
     expect(result.members).toEqual([
       {
@@ -60,6 +58,18 @@ describe("calculateBalances", () => {
     ]);
     expect(result.settlements).toEqual([
       { fromMemberId: "amy", toMemberId: "wei", amount: "400" },
+      { fromMemberId: "tom", toMemberId: "wei", amount: "1600" }
+    ]);
+  });
+
+  it("subtracts completed repayments from the remaining balances", () => {
+    const result = calculateBalances(members, expenses, "JPY", [
+      { fromMemberId: "amy", toMemberId: "wei", amount: "400" }
+    ]);
+
+    expect(result.members.find((member) => member.memberId === "amy")?.balance).toBe("0");
+    expect(result.members.find((member) => member.memberId === "wei")?.balance).toBe("1600");
+    expect(result.settlements).toEqual([
       { fromMemberId: "tom", toMemberId: "wei", amount: "1600" }
     ]);
   });

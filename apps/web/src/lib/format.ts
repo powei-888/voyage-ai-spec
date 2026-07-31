@@ -35,7 +35,16 @@ const LABELS: Record<string, string> = {
   activeExpenseCount: "有效支出筆數",
   pendingReceiptCount: "待確認收據",
   draft: "草稿",
-  available: "可用狀態"
+  available: "可用狀態",
+  checkedDays: "檢查天數",
+  currency: "幣別",
+  recordedTotal: "已記錄總額",
+  budgetAmount: "旅程預算",
+  budgetUsagePercent: "預算使用率 (%)",
+  largestCategory: "最高支出分類",
+  largestCategoryAmount: "最高分類金額",
+  equal: "平均分攤",
+  custom: "自訂金額"
 };
 
 export function formatDate(value: string, options?: Intl.DateTimeFormatOptions): string {

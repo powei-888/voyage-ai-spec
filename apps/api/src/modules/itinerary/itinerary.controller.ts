@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
 import { ok } from "../../common/api-response";
 import { CurrentUserId } from "../../common/current-user.decorator";
-import { CreateEventDto, ReorderEventsDto, UpdateEventDto } from "./itinerary.dto";
+import { CreateEventDto, MoveEventDto, ReorderEventsDto, UpdateEventDto } from "./itinerary.dto";
 import { ItineraryService } from "./itinerary.service";
 
 @Controller("trips/:tripId")
@@ -53,6 +53,16 @@ export class ItineraryController {
     @Body() dto: UpdateEventDto
   ) {
     return ok(await this.itinerary.updateEvent(userId, tripId, eventId, dto));
+  }
+
+  @Post("events/:eventId/move")
+  async moveEvent(
+    @CurrentUserId() userId: string,
+    @Param("tripId") tripId: string,
+    @Param("eventId") eventId: string,
+    @Body() dto: MoveEventDto
+  ) {
+    return ok(await this.itinerary.moveEvent(userId, tripId, eventId, dto));
   }
 
   @Delete("events/:eventId")

@@ -15,21 +15,8 @@ export class SplitCalculatorService {
     payerMemberId: string,
     participantMemberIds: string[]
   ): ExpenseShare[] {
-    if (participantMemberIds.length === 0) {
-      throw new DomainError(
-        "EXPENSE_PARTICIPANTS_REQUIRED",
-        "Select at least one expense participant."
-      );
-    }
-    const uniqueIds = new Set(participantMemberIds);
-    if (uniqueIds.size !== participantMemberIds.length) {
-      throw new DomainError(
-        "DUPLICATE_EXPENSE_PARTICIPANT",
-        "Each expense participant can be selected only once."
-      );
-    }
-
-    const orderedIds = [...uniqueIds].sort((a, b) => {
+    this.assertUniqueParticipants(participantMemberIds);
+    const orderedIds = [...participantMemberIds].sort((a, b) => {
       if (a === payerMemberId) return -1;
       if (b === payerMemberId) return 1;
       return a.localeCompare(b);
@@ -46,5 +33,45 @@ export class SplitCalculatorService {
         currency
       )
     }));
+  }
+
+  customSplit(
+    amount: string,
+    currency: string,
+    shares: ExpenseShare[]
+  ): ExpenseShare[] {
+    this.assertUniqueParticipants(shares.map((share) => share.memberId));
+    const expected = toMinorUnits(amount, currency);
+    const actual = shares.reduce(
+      (sum, share) => sum + toMinorUnits(share.shareAmount, currency),
+      0n
+    );
+    if (actual !== expected) {
+      throw new DomainError(
+        "CUSTOM_SPLIT_TOTAL_MISMATCH",
+        "Custom shares must add up to the expense amount.",
+        undefined,
+        {
+          amount: fromMinorUnits(expected, currency),
+          shareTotal: fromMinorUnits(actual, currency)
+        }
+      );
+    }
+    return [...shares].sort((a, b) => a.memberId.localeCompare(b.memberId));
+  }
+
+  private assertUniqueParticipants(memberIds: string[]): void {
+    if (memberIds.length === 0) {
+      throw new DomainError(
+        "EXPENSE_PARTICIPANTS_REQUIRED",
+        "Select at least one expense participant."
+      );
+    }
+    if (new Set(memberIds).size !== memberIds.length) {
+      throw new DomainError(
+        "DUPLICATE_EXPENSE_PARTICIPANT",
+        "Each expense participant can be selected only once."
+      );
+    }
   }
 }

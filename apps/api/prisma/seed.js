@@ -1,3 +1,5 @@
+const { randomBytes, scryptSync } = require("node:crypto");
+
 const {
   AIProposalStatus,
   AIProposalType,
@@ -9,6 +11,11 @@ const {
 } = require("@prisma/client");
 
 const prisma = new PrismaClient();
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const key = scryptSync(password, salt, 64);
+  return "scrypt$" + salt + "$" + key.toString("hex");
+}
 
 const ids = {
   user: "00000000-0000-4000-8000-000000000001",
@@ -29,13 +36,15 @@ const ids = {
 };
 
 async function main() {
+  const demoPasswordHash = hashPassword(process.env.DEMO_USER_PASSWORD || "voyage-demo");
   await prisma.user.upsert({
     where: { id: ids.user },
-    update: { displayName: "示範旅人" },
+    update: { displayName: "示範旅人", passwordHash: demoPasswordHash },
     create: {
       id: ids.user,
       email: "demo@voyage.local",
-      displayName: "示範旅人"
+      displayName: "示範旅人",
+      passwordHash: demoPasswordHash
     }
   });
 

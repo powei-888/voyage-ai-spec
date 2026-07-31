@@ -2,7 +2,8 @@ import type { Expense, ItineraryEvent, Trip, TripMember } from "@voyage/shared";
 import { Save } from "lucide-react";
 import { toDateInput, titleCase } from "../lib/format";
 import { EXPENSE_CATEGORIES } from "../lib/options";
-import { MemberChecks } from "./member-checks";
+import { ExpenseSplitFields } from "./expense-split-fields";
+import { PendingButton } from "./pending-button";
 
 export function ExpenseForm({
   action,
@@ -19,8 +20,6 @@ export function ExpenseForm({
   expense?: Expense;
   submitLabel: string;
 }) {
-  const selected = expense?.participants.map((item) => item.memberId) ?? [];
-
   return (
     <form action={action} className="form-grid">
       <label className="field field-span-2">
@@ -78,15 +77,15 @@ export function ExpenseForm({
           ))}
         </select>
       </label>
-      <MemberChecks
-        members={members}
-        selectedIds={selected}
-        defaultAll={!expense}
-      />
+      <ExpenseSplitFields members={members} expense={expense} />
       <div className="form-actions field-span-2">
-        <button className="button button-primary" type="submit">
+        <PendingButton
+          className="button button-primary"
+          type="submit"
+          pendingLabel="儲存中…"
+        >
           <Save size={16} /> {submitLabel}
-        </button>
+        </PendingButton>
       </div>
     </form>
   );

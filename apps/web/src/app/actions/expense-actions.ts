@@ -67,7 +67,12 @@ function expensePayload(formData: FormData, update = false) {
     category: formString(formData, "category") || "other",
     expenseDate: update ? nullableString(formData, "expenseDate") : optionalString(formData, "expenseDate"),
     payerMemberId: formString(formData, "payerMemberId"),
+    splitMethod: formString(formData, "splitMethod") || "equal",
     participantMemberIds: formStrings(formData, "participantMemberIds"),
+    splitShares: formStrings(formData, "participantMemberIds").map((memberId) => ({
+      memberId,
+      shareAmount: formString(formData, "shareAmount:" + memberId)
+    })).filter((share) => share.shareAmount),
     linkedEventId: nullableString(formData, "linkedEventId")
   };
 }

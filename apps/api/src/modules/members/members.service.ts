@@ -119,7 +119,9 @@ export class MembersService {
             paidExpenses: true,
             expenseShares: true,
             createdEvents: true,
-            createdBookings: true
+            createdBookings: true,
+            settlementsSent: true,
+            settlementsReceived: true
           }
         }
       }

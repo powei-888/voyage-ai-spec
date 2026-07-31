@@ -1,7 +1,11 @@
-import { Compass, Plus } from "lucide-react";
+import type { LocalUser } from "@voyage/shared";
+import { Compass, LogOut, Plus } from "lucide-react";
 import Link from "next/link";
+import { logoutAction } from "../app/actions/auth-actions";
+import { apiGet } from "../lib/api";
 
-export function AppHeader() {
+export async function AppHeader() {
+  const user = await apiGet<LocalUser>("/auth/me");
   return (
     <header className="app-header">
       <Link className="brand" href="/" aria-label="Voyage AI 旅程">
@@ -15,9 +19,14 @@ export function AppHeader() {
           <Plus size={16} />
           <span>新增旅程</span>
         </Link>
-        <span className="avatar" title="示範旅人">
-          示
+        <span className="avatar" title={`${user.displayName} · ${user.email}`}>
+          {user.displayName.slice(0, 1).toUpperCase()}
         </span>
+        <form action={logoutAction}>
+          <button className="icon-button" type="submit" title="登出">
+            <LogOut size={16} />
+          </button>
+        </form>
       </nav>
     </header>
   );

@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -12,7 +14,8 @@ import type { MultipartFile } from "@fastify/multipart";
 import { ok } from "../../common/api-response";
 import { CurrentUserId } from "../../common/current-user.decorator";
 import { DomainError } from "../../common/domain-error";
-import { ConfirmReceiptDto } from "./receipts.dto";
+import { ReceiptConfirmationService } from "./receipt-confirmation.service";
+import { ConfirmReceiptDto, UpdateReceiptDraftDto } from "./receipts.dto";
 import { ReceiptsService } from "./receipts.service";
 
 type MultipartRequest = {
@@ -25,7 +28,10 @@ type HeaderReply = {
 
 @Controller("trips/:tripId/receipts")
 export class ReceiptsController {
-  constructor(private readonly receipts: ReceiptsService) {}
+  constructor(
+    private readonly receipts: ReceiptsService,
+    private readonly confirmation: ReceiptConfirmationService
+  ) {}
 
   @Get()
   async list(
@@ -52,6 +58,25 @@ export class ReceiptsController {
         buffer: await file.toBuffer()
       })
     );
+  }
+
+  @Patch(":receiptId")
+  async updateDraft(
+    @CurrentUserId() userId: string,
+    @Param("tripId") tripId: string,
+    @Param("receiptId") receiptId: string,
+    @Body() dto: UpdateReceiptDraftDto
+  ) {
+    return ok(await this.receipts.updateDraft(userId, tripId, receiptId, dto));
+  }
+
+  @Delete(":receiptId")
+  async remove(
+    @CurrentUserId() userId: string,
+    @Param("tripId") tripId: string,
+    @Param("receiptId") receiptId: string
+  ) {
+    return ok(await this.receipts.remove(userId, tripId, receiptId));
   }
 
   @Get(":receiptId/image")
@@ -83,6 +108,6 @@ export class ReceiptsController {
     @Param("receiptId") receiptId: string,
     @Body() dto: ConfirmReceiptDto
   ) {
-    return ok(await this.receipts.confirm(userId, tripId, receiptId, dto));
+    return ok(await this.confirmation.confirm(userId, tripId, receiptId, dto));
   }
 }

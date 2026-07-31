@@ -43,6 +43,11 @@ enum ExpenseStatus {
   voided
 }
 
+enum ExpenseSplitMethod {
+  equal
+  custom
+}
+
 enum ReceiptStatus {
   pending
   processing
@@ -79,15 +84,30 @@ enum AIProposalStatus {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  displayName String
-  avatarUrl   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  email        String   @unique
+  displayName  String
+  avatarUrl    String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   ownedTrips  Trip[]       @relation("TripOwner")
   memberships TripMember[]
+  sessions    Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Trip {
@@ -104,14 +124,15 @@ model Trip {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  owner     User             @relation("TripOwner", fields: [ownerUserId], references: [id])
-  members   TripMember[]
-  days      ItineraryDay[]
-  events    ItineraryEvent[]
-  receipts  Receipt[]
-  expenses  Expense[]
-  bookings  Booking[]
-  proposals AIProposal[]
+  owner       User             @relation("TripOwner", fields: [ownerUserId], references: [id])
+  members     TripMember[]
+  days        ItineraryDay[]
+  events      ItineraryEvent[]
+  receipts    Receipt[]
+  expenses    Expense[]
+  bookings    Booking[]
+  proposals   AIProposal[]
+  settlements Settlement[]
 
   @@index([ownerUserId])
   @@index([startDate])
@@ -131,16 +152,19 @@ model TripMember {
   trip Trip  @relation(fields: [tripId], references: [id])
   user User? @relation(fields: [userId], references: [id])
 
-  createdEvents     ItineraryEvent[]     @relation("EventCreator")
-  eventParticipants EventParticipant[]
-  uploadedReceipts  Receipt[]            @relation("ReceiptUploader")
-  confirmedReceipts Receipt[]            @relation("ReceiptConfirmer")
-  paidExpenses      Expense[]            @relation("ExpensePayer")
-  createdExpenses   Expense[]            @relation("ExpenseCreator")
-  expenseShares     ExpenseParticipant[]
-  createdBookings   Booking[]            @relation("BookingCreator")
-  createdProposals  AIProposal[]         @relation("AIProposalCreator")
-  appliedProposals  AIProposal[]         @relation("AIProposalApplier")
+  createdEvents       ItineraryEvent[]     @relation("EventCreator")
+  eventParticipants   EventParticipant[]
+  uploadedReceipts    Receipt[]            @relation("ReceiptUploader")
+  confirmedReceipts   Receipt[]            @relation("ReceiptConfirmer")
+  paidExpenses        Expense[]            @relation("ExpensePayer")
+  createdExpenses     Expense[]            @relation("ExpenseCreator")
+  expenseShares       ExpenseParticipant[]
+  createdBookings     Booking[]            @relation("BookingCreator")
+  createdProposals    AIProposal[]         @relation("AIProposalCreator")
+  appliedProposals    AIProposal[]         @relation("AIProposalApplier")
+  settlementsSent     Settlement[]         @relation("SettlementSender")
+  settlementsReceived Settlement[]         @relation("SettlementReceiver")
+  createdSettlements  Settlement[]         @relation("SettlementCreator")
 
   @@unique([tripId, userId])
   @@index([tripId])
@@ -240,21 +264,22 @@ model Receipt {
 }
 
 model Expense {
-  id                String          @id @default(uuid())
+  id                String             @id @default(uuid())
   tripId            String
   title             String
   merchant          String?
   amount            Decimal
   currency          String
-  category          ExpenseCategory @default(other)
+  category          ExpenseCategory    @default(other)
   expenseDate       DateTime?
   payerMemberId     String
-  linkedReceiptId   String?         @unique
+  linkedReceiptId   String?            @unique
   linkedEventId     String?
-  status            ExpenseStatus   @default(active)
+  status            ExpenseStatus      @default(active)
+  splitMethod       ExpenseSplitMethod @default(equal)
   createdByMemberId String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   trip            Trip                 @relation(fields: [tripId], references: [id])
   payerMember     TripMember           @relation("ExpensePayer", fields: [payerMemberId], references: [id])
@@ -283,6 +308,28 @@ model ExpenseParticipant {
 
   @@unique([expenseId, memberId])
   @@index([memberId])
+}
+
+model Settlement {
+  id                String   @id @default(uuid())
+  tripId            String
+  fromMemberId      String
+  toMemberId        String
+  amount            Decimal
+  currency          String
+  note              String?
+  settledAt         DateTime
+  createdByMemberId String?
+  createdAt         DateTime @default(now())
+
+  trip            Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  fromMember      TripMember  @relation("SettlementSender", fields: [fromMemberId], references: [id])
+  toMember        TripMember  @relation("SettlementReceiver", fields: [toMemberId], references: [id])
+  createdByMember TripMember? @relation("SettlementCreator", fields: [createdByMemberId], references: [id])
+
+  @@index([tripId, settledAt])
+  @@index([fromMemberId])
+  @@index([toMemberId])
 }
 
 model Booking {

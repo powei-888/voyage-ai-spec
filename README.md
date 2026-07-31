@@ -4,7 +4,7 @@ AI-native travel collaboration platform.
 
 Plan smarter. Travel together. Remember forever.
 
-Voyage AI v0.1 is a working travel collaboration workspace where a group can plan a trip, manage bookings, record shared costs, review receipt extraction, and decide on AI proposals without giving automation direct control of canonical data.
+Voyage AI v0.2 is a practical travel collaboration workspace where a group can plan a trip, manage bookings, record shared costs, review receipt extraction, and decide on AI proposals without giving automation direct control of canonical data.
 
 ## Core idea
 
@@ -16,11 +16,14 @@ AI should reduce travel chaos, but users must stay in control.
 - Member management
 - Day-by-day timeline
 - Expense records
-- Equal split calculation
+- Equal and custom split calculation
+- Completed repayment records and remaining balance calculation
 - Receipt OCR confirmation flow with mock OCR first
 - Booking hub
 - AI proposal review and decision lifecycle
-- Responsive operational UI
+- Local account authentication with expiring server sessions
+- Drag-and-drop itinerary ordering and cross-day moves
+- Responsive operational UI with Traditional Chinese copy
 - Basic trip membership and owner access rules
 - Codex-ready implementation prompts and architecture documentation
 
@@ -33,7 +36,7 @@ AI should reduce travel chaos, but users must stay in control.
 - Jest and ts-jest
 - Docker Compose for local PostgreSQL
 
-Real AI, OCR, object storage, queues, and external authentication are intentionally outside v0.1. Provider and storage interfaces keep those integrations replaceable; the running MVP uses deterministic mock providers and controlled local receipt storage.
+Real AI, OCR, object storage, queues, email verification, and social login remain outside v0.2. Provider and storage interfaces keep integrations replaceable; the running workspace uses deterministic local analysis, mock OCR, controlled receipt storage, and password-based accounts intended for a trusted private network.
 
 ## Documentation
 
@@ -95,9 +98,18 @@ Default local services:
 
 Root scripts load `.env` through `dotenv-cli`. If port 5432 is occupied, update both `POSTGRES_PORT` and the port inside `DATABASE_URL`, then restart PostgreSQL.
 
-### Demo identity
+### Local authentication
 
-The web app sends the seeded `DEMO_USER_ID` to the API through the `x-user-id` header. The API still verifies trip membership on every trip-scoped request and requires the owner role for member management, trip settings, and archive operations. This header-based identity is a v0.1 development boundary, not production authentication.
+The API stores scrypt password hashes and opaque, hashed session tokens. The web app keeps the session token in an HttpOnly cookie and forwards it as a Bearer token from server-side requests. Trip-scoped requests still verify membership, and owner-only operations remain protected.
+
+Seeded login:
+
+```text
+Email: demo.local
+Password: voyage-demo
+```
+
+Change `DEMO_USER_PASSWORD` before seeding a shared private deployment. Keep `ALLOW_INSECURE_DEMO_AUTH=false`; the fallback header identity exists only for isolated API development.
 
 ### Useful commands
 
@@ -120,13 +132,15 @@ npm run test
 npm run build
 ```
 
-API tests cover health, deterministic equal splitting, payer exclusion, rounding, settlement aggregation, voided expenses, receipt confirmation idempotency, and AI proposal state transitions. Web tests cover date, money, and enum formatting.
+API tests cover health, password hashing, deterministic equal and custom splitting, payer exclusion, rounding, completed repayments, cross-day event movement, voided expenses, receipt confirmation idempotency, and AI proposal state transitions. Web tests cover date, money, and enum formatting.
 
 ### Main API routes
 
 All endpoints use the `/api` prefix and return `{ "data": ..., "meta": ... }` or a structured `{ "error": ... }` response.
 
 ```text
+POST            /api/auth/register|login|logout
+GET             /api/auth/me
 GET|POST        /api/trips
 GET|PATCH       /api/trips/:tripId
 POST            /api/trips/:tripId/archive
@@ -134,10 +148,14 @@ GET|POST        /api/trips/:tripId/members
 GET             /api/trips/:tripId/itinerary-days
 POST            /api/trips/:tripId/itinerary-days/:dayId/events
 POST            /api/trips/:tripId/itinerary-days/:dayId/events/reorder
+POST            /api/trips/:tripId/events/:eventId/move
 GET|POST        /api/trips/:tripId/expenses
 GET             /api/trips/:tripId/expenses/balances
 GET|POST        /api/trips/:tripId/receipts
+PATCH|DELETE    /api/trips/:tripId/receipts/:receiptId
 POST            /api/trips/:tripId/receipts/:receiptId/confirm
+GET|POST        /api/trips/:tripId/settlements
+DELETE          /api/trips/:tripId/settlements/:settlementId
 GET|POST        /api/trips/:tripId/bookings
 GET|POST        /api/trips/:tripId/ai-proposals
 POST            /api/trips/:tripId/ai-proposals/:proposalId/accept
@@ -148,4 +166,4 @@ POST            /api/trips/:tripId/ai-proposals/:proposalId/reject
 
 Receipt upload accepts JPEG, PNG, WebP, or PDF files up to 8 MB. Mock OCR creates an editable draft; only explicit confirmation creates the canonical expense. `Expense.linkedReceiptId` is the single unique receipt-to-expense relation, so repeated confirmation returns the same expense.
 
-AI requests create stored proposals. Accept and reject are explicit state transitions; the mock provider never calls an external API and never mutates trip data directly.
+AI requests create stored proposals. Accept and reject are explicit state transitions. The deterministic provider never calls an external API or mutates trip data directly; itinerary checks inspect actual event time ranges, and expense summaries inspect current budget and category totals.

@@ -1,10 +1,12 @@
 import type { ItineraryEvent, Receipt, TripMember } from "@voyage/shared";
-import { CheckCircle2, ImageIcon } from "lucide-react";
-import { confirmReceiptAction } from "../app/actions/receipt-actions";
+import { CheckCircle2, ImageIcon, Save, Trash2 } from "lucide-react";
+import { deleteReceiptAction, reviewReceiptAction } from "../app/actions/receipt-actions";
 import { apiAssetUrl } from "../lib/api";
 import { titleCase } from "../lib/format";
 import { EXPENSE_CATEGORIES } from "../lib/options";
-import { MemberChecks } from "./member-checks";
+import { ConfirmForm } from "./confirm-form";
+import { ExpenseSplitFields } from "./expense-split-fields";
+import { PendingButton } from "./pending-button";
 
 export function ReceiptReviewCard({
   tripId,
@@ -37,8 +39,14 @@ export function ReceiptReviewCard({
       <div className="receipt-form">
         <div className="section-heading">
           <div><p className="eyebrow">待確認</p><h2>{receipt.imageOriginalName || "收據草稿"}</h2></div>
+          <ConfirmForm
+            action={deleteReceiptAction.bind(null, tripId, receipt.id)}
+            message="要刪除這份收據草稿與上傳檔案嗎？"
+          >
+            <button className="icon-button danger" type="submit" title="刪除收據草稿"><Trash2 size={16} /></button>
+          </ConfirmForm>
         </div>
-        <form action={confirmReceiptAction.bind(null, tripId, receipt.id)} className="form-grid">
+        <form action={reviewReceiptAction.bind(null, tripId, receipt.id)} className="form-grid">
           <label className="field field-span-2">
             <span>標題</span>
             <input name="title" defaultValue={extracted.merchant || "收據支出"} required />
@@ -84,11 +92,14 @@ export function ReceiptReviewCard({
               ))}
             </select>
           </label>
-          <MemberChecks members={members} defaultAll />
+          <ExpenseSplitFields members={members} />
           <div className="form-actions field-span-2">
-            <button className="button button-primary" type="submit">
+            <PendingButton className="button button-secondary" name="intent" value="save" type="submit" pendingLabel="儲存中…">
+              <Save size={16} /> 儲存草稿
+            </PendingButton>
+            <PendingButton className="button button-primary" name="intent" value="confirm" type="submit" pendingLabel="建立中…">
               <CheckCircle2 size={17} /> 確認並建立支出
-            </button>
+            </PendingButton>
           </div>
         </form>
       </div>

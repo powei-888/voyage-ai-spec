@@ -13,8 +13,10 @@ import { AppHeader } from "../components/app-header";
 import { EmptyState } from "../components/empty-state";
 import { Notice } from "../components/notice";
 import { PageHeading } from "../components/page-heading";
+import { PendingButton } from "../components/pending-button";
 import { safeApiGet } from "../lib/api";
 import { formatDateRange, titleCase } from "../lib/format";
+import { requireSession } from "../lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,7 @@ type PageProps = {
 };
 
 export default async function HomePage({ searchParams }: PageProps) {
+  await requireSession();
   const params = await searchParams;
   const result = await safeApiGet<Trip[]>("/trips");
   const trips = result.data ?? [];
@@ -125,9 +128,9 @@ export default async function HomePage({ searchParams }: PageProps) {
               <input name="budgetAmount" inputMode="decimal" placeholder="120000" />
             </label>
             <div className="form-actions field-span-2">
-              <button className="button button-primary" type="submit">
+              <PendingButton className="button button-primary" type="submit" pendingLabel="建立中…">
                 <PlaneTakeoff size={17} /> 建立旅程
-              </button>
+              </PendingButton>
             </div>
           </form>
         </section>

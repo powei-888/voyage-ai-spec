@@ -1,7 +1,9 @@
 import type { Trip, TripMember } from "@voyage/shared";
 import { Crown, Mail, Pencil, Plus, Trash2, UserRound, Users } from "lucide-react";
 import { addMemberAction, removeMemberAction, updateMemberAction } from "../../../actions/member-actions";
+import { ConfirmForm } from "../../../../components/confirm-form";
 import { EmptyState } from "../../../../components/empty-state";
+import { PendingButton } from "../../../../components/pending-button";
 import { Notice } from "../../../../components/notice";
 import { PageHeading } from "../../../../components/page-heading";
 import { apiGet } from "../../../../lib/api";
@@ -66,14 +68,14 @@ export default async function MembersPage({ params, searchParams }: PageProps) {
                           </select>
                           {isCreator ? <input type="hidden" name="role" value="owner" /> : null}
                         </label>
-                        <div className="form-actions field-span-2"><button className="button button-secondary" type="submit">儲存成員</button></div>
+                        <div className="form-actions field-span-2"><PendingButton className="button button-secondary" type="submit" pendingLabel="儲存中…">儲存成員</PendingButton></div>
                       </form>
                     </details>
                   </div>
                   {!isCreator ? (
-                    <form action={removeMemberAction.bind(null, tripId, member.id)}>
+                    <ConfirmForm action={removeMemberAction.bind(null, tripId, member.id)} message="要移除這位成員嗎？">
                       <button className="icon-button danger" type="submit" title="移除成員"><Trash2 size={16} /></button>
-                    </form>
+                    </ConfirmForm>
                   ) : null}
                 </article>
               );
@@ -90,7 +92,7 @@ export default async function MembersPage({ params, searchParams }: PageProps) {
             <span>電子郵件</span>
             <div className="input-affix"><Mail size={16} /><input name="email" type="email" placeholder="amy@example.com" maxLength={160} /></div>
           </label>
-          <div className="form-actions field-span-2"><button className="button button-primary" type="submit"><Plus size={16} /> 新增成員</button></div>
+          <div className="form-actions field-span-2"><PendingButton className="button button-primary" type="submit" pendingLabel="新增中…"><Plus size={16} /> 新增成員</PendingButton></div>
         </form>
       </section>
     </div>

@@ -59,4 +59,34 @@ describe("SplitCalculatorService", () => {
       "Each expense participant can be selected only once."
     );
   });
+
+  it("accepts exact custom shares and sorts them deterministically", () => {
+    expect(
+      calculator.customSplit("1000", "JPY", [
+        { memberId: "tom", shareAmount: "250" },
+        { memberId: "amy", shareAmount: "750" }
+      ])
+    ).toEqual([
+      { memberId: "amy", shareAmount: "750" },
+      { memberId: "tom", shareAmount: "250" }
+    ]);
+  });
+
+  it("rejects custom shares that do not preserve the expense total", () => {
+    expect(() =>
+      calculator.customSplit("1000", "JPY", [
+        { memberId: "amy", shareAmount: "700" },
+        { memberId: "tom", shareAmount: "200" }
+      ])
+    ).toThrow("Custom shares must add up to the expense amount.");
+  });
+
+  it("enforces currency precision for custom shares", () => {
+    expect(() =>
+      calculator.customSplit("100", "JPY", [
+        { memberId: "amy", shareAmount: "99.5" },
+        { memberId: "tom", shareAmount: "0.5" }
+      ])
+    ).toThrow("JPY supports at most 0 decimal places.");
+  });
 });

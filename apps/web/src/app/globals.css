@@ -6,3 +6,6 @@
 @import "./styles/records.css";
 @import "./styles/capture.css";
 @import "./styles/responsive.css";
+
+@import "./styles/auth.css";
+@import "./styles/v02.css";

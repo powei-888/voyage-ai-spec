@@ -43,8 +43,10 @@ export async function updateEventAction(
   eventId: string,
   formData: FormData
 ): Promise<void> {
-  const path = `/trips/${tripId}/timeline?day=${dayId}`;
+  let targetDayId = dayId;
+  let path = `/trips/${tripId}/timeline?day=${dayId}`;
   try {
+    targetDayId = formString(formData, "targetDayId") || dayId;
     const estimatedCostAmount = nullableString(formData, "estimatedCostAmount");
     await apiSend(`/trips/${tripId}/events/${eventId}`, "PATCH", {
       title: formString(formData, "title"),
@@ -55,14 +57,36 @@ export async function updateEventAction(
       address: formString(formData, "address"),
       notes: formString(formData, "notes"),
       estimatedCostAmount,
-      estimatedCostCurrency: estimatedCostAmount === null ? null : optionalString(formData, "estimatedCostCurrency"),
+      estimatedCostCurrency:
+        estimatedCostAmount === null
+          ? null
+          : optionalString(formData, "estimatedCostCurrency"),
       participantMemberIds: formStrings(formData, "participantMemberIds")
     });
+    if (targetDayId !== dayId) {
+      await apiSend(`/trips/${tripId}/events/${eventId}/move`, "POST", {
+        targetDayId
+      });
+      path = `/trips/${tripId}/timeline?day=${targetDayId}`;
+    }
     revalidatePath(`/trips/${tripId}`);
     redirect(`${path}&notice=${encodeURIComponent("已更新行程")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
+}
+
+export async function moveEventAction(
+  tripId: string,
+  eventId: string,
+  targetDayId: string,
+  targetIndex: number
+): Promise<void> {
+  await apiSend(`/trips/${tripId}/events/${eventId}/move`, "POST", {
+    targetDayId,
+    targetIndex
+  });
+  revalidatePath(`/trips/${tripId}/timeline`);
 }
 
 export async function reorderEventsAction(

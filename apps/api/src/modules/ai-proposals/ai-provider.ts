@@ -6,6 +6,20 @@ export type ProposalContext = {
   eventCount: number;
   activeExpenseCount: number;
   pendingReceiptCount: number;
+  budgetAmount: string | null;
+  expenseTotal: string;
+  baseCurrency: string;
+  categoryTotals: Array<{ category: string; amount: string }>;
+  days: Array<{
+    dayIndex: number;
+    date: string;
+    events: Array<{
+      title: string;
+      startTime: string | null;
+      endTime: string | null;
+      locationName: string | null;
+    }>;
+  }>;
 };
 
 export type ProposalDraft = {

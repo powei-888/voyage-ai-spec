@@ -6,6 +6,7 @@ import {
   updateBookingAction
 } from "../../../actions/booking-actions";
 import { BookingForm } from "../../../../components/booking-form";
+import { ConfirmForm } from "../../../../components/confirm-form";
 import { EmptyState } from "../../../../components/empty-state";
 import { Notice } from "../../../../components/notice";
 import { PageHeading } from "../../../../components/page-heading";
@@ -66,9 +67,9 @@ export default async function BookingsPage({ params, searchParams }: PageProps) 
                   <span>確認碼</span>
                   <code>{booking.confirmationCode || "未設定"}</code>
                 </div>
-                <form action={deleteBookingAction.bind(null, tripId, booking.id)}>
+                <ConfirmForm action={deleteBookingAction.bind(null, tripId, booking.id)} message="要刪除這筆預訂嗎？">
                   <button className="icon-button danger" type="submit" title="刪除預訂"><Trash2 size={16} /></button>
-                </form>
+                </ConfirmForm>
               </article>
             ))}
           </div>

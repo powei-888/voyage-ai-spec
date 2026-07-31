@@ -1,14 +1,12 @@
 import { HttpStatus, Inject, Injectable } from "@nestjs/common";
-import { Prisma, ReceiptStatus } from "@prisma/client";
+import { ReceiptStatus } from "@prisma/client";
 import { randomUUID } from "node:crypto";
-import { parseDateOnly } from "../../common/date-utils";
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
-import { SplitCalculatorService } from "../expenses/split-calculator.service";
 import { OCR_PROVIDER, OcrProvider } from "./ocr-provider";
 import { RECEIPT_STORAGE, ReceiptStorage } from "./receipt-storage";
-import { ConfirmReceiptDto } from "./receipts.dto";
+import { UpdateReceiptDraftDto } from "./receipts.dto";
 
 const receiptInclude = {
   uploadedByMember: { select: { id: true, displayName: true } },
@@ -16,10 +14,6 @@ const receiptInclude = {
   confirmedExpense: { select: { id: true, title: true, amount: true, currency: true } }
 } as const;
 
-const confirmedExpenseInclude = {
-  participants: true,
-  payerMember: { select: { id: true, displayName: true } }
-} as const;
 
 type UploadFile = {
   originalName: string;
@@ -32,7 +26,6 @@ export class ReceiptsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: TripAccessService,
-    private readonly split: SplitCalculatorService,
     @Inject(OCR_PROVIDER) private readonly ocr: OcrProvider,
     @Inject(RECEIPT_STORAGE) private readonly storage: ReceiptStorage
   ) {}
@@ -129,6 +122,58 @@ export class ReceiptsService {
     }
   }
 
+  async updateDraft(
+    userId: string,
+    tripId: string,
+    receiptId: string,
+    dto: UpdateReceiptDraftDto
+  ) {
+    await this.access.requireMember(tripId, userId);
+    const receipt = await this.prisma.receipt.findFirst({
+      where: { id: receiptId, tripId }
+    });
+    if (!receipt) {
+      throw DomainError.notFound("RECEIPT_NOT_FOUND", "Receipt not found.");
+    }
+    if (receipt.ocrStatus !== ReceiptStatus.extracted || !receipt.extractedJson) {
+      throw new DomainError(
+        "RECEIPT_NOT_EDITABLE",
+        "Only extracted receipt drafts can be edited.",
+        HttpStatus.CONFLICT
+      );
+    }
+    const extracted = receipt.extractedJson as Record<string, unknown>;
+    const updated = await this.prisma.receipt.update({
+      where: { id: receiptId },
+      data: { extractedJson: { ...extracted, ...dto } },
+      include: receiptInclude
+    });
+    return this.present(updated);
+  }
+
+  async remove(userId: string, tripId: string, receiptId: string) {
+    await this.access.requireMember(tripId, userId);
+    const receipt = await this.prisma.receipt.findFirst({
+      where: { id: receiptId, tripId },
+      include: { confirmedExpense: true }
+    });
+    if (!receipt) {
+      throw DomainError.notFound("RECEIPT_NOT_FOUND", "Receipt not found.");
+    }
+    if (receipt.confirmedExpense || receipt.ocrStatus === ReceiptStatus.confirmed) {
+      throw new DomainError(
+        "RECEIPT_ALREADY_CONFIRMED",
+        "Confirmed receipts cannot be deleted.",
+        HttpStatus.CONFLICT
+      );
+    }
+    await this.prisma.receipt.delete({ where: { id: receiptId } });
+    if (receipt.imageUrl.startsWith("local://")) {
+      await this.storage.remove(receipt.imageUrl).catch(() => undefined);
+    }
+    return receipt;
+  }
+
   async readImage(userId: string, tripId: string, receiptId: string) {
     await this.access.requireMember(tripId, userId);
     const receipt = await this.prisma.receipt.findFirst({
@@ -149,114 +194,6 @@ export class ReceiptsService {
     };
   }
 
-  async confirm(
-    userId: string,
-    tripId: string,
-    receiptId: string,
-    dto: ConfirmReceiptDto
-  ) {
-    const actor = await this.access.requireMember(tripId, userId);
-    const trip = await this.prisma.trip.findUnique({
-      where: { id: tripId },
-      select: { baseCurrency: true }
-    });
-    if (!trip) {
-      throw DomainError.notFound("TRIP_NOT_FOUND", "Trip not found.");
-    }
-    if (dto.currency !== trip.baseCurrency) {
-      throw new DomainError(
-        "CURRENCY_MISMATCH",
-        `v0.1 expenses must use the trip base currency (${trip.baseCurrency}).`
-      );
-    }
-    await this.access.assertMembersBelongToTrip(tripId, [
-      dto.payerMemberId,
-      ...dto.participantMemberIds
-    ]);
-    const shares = this.split.equalSplit(
-      dto.amount,
-      dto.currency,
-      dto.payerMemberId,
-      dto.participantMemberIds
-    );
-
-    try {
-      const expenseId = await this.prisma.$transaction(
-        async (tx) => {
-          const receipt = await tx.receipt.findFirst({
-            where: { id: receiptId, tripId },
-            include: { confirmedExpense: true }
-          });
-          if (!receipt) {
-            throw DomainError.notFound("RECEIPT_NOT_FOUND", "Receipt not found.");
-          }
-          if (receipt.ocrStatus === ReceiptStatus.confirmed && receipt.confirmedExpense) {
-            return receipt.confirmedExpense.id;
-          }
-          if (receipt.ocrStatus !== ReceiptStatus.extracted) {
-            throw new DomainError(
-              "RECEIPT_NOT_READY",
-              "Only extracted receipts can be confirmed.",
-              HttpStatus.CONFLICT
-            );
-          }
-          if (dto.linkedEventId) {
-            const event = await tx.itineraryEvent.findFirst({
-              where: { id: dto.linkedEventId, tripId },
-              select: { id: true }
-            });
-            if (!event) {
-              throw new DomainError("INVALID_LINKED_EVENT", "Linked event is not in this trip.");
-            }
-          }
-
-          const expense = await tx.expense.create({
-            data: {
-              tripId,
-              title: dto.title.trim(),
-              merchant: dto.merchant?.trim() || null,
-              amount: dto.amount,
-              currency: dto.currency,
-              category: dto.category,
-              expenseDate: dto.expenseDate ? parseDateOnly(dto.expenseDate) : null,
-              payerMemberId: dto.payerMemberId,
-              linkedReceiptId: receiptId,
-              linkedEventId: dto.linkedEventId || null,
-              createdByMemberId: actor.id,
-              participants: { create: shares }
-            },
-            select: { id: true }
-          });
-          await tx.receipt.update({
-            where: { id: receiptId },
-            data: {
-              ocrStatus: ReceiptStatus.confirmed,
-              confirmedAt: new Date(),
-              confirmedByMemberId: actor.id
-            }
-          });
-          return expense.id;
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-      );
-      return this.prisma.expense.findUniqueOrThrow({
-        where: { id: expenseId },
-        include: confirmedExpenseInclude
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        ["P2002", "P2034"].includes(error.code)
-      ) {
-        const existing = await this.prisma.expense.findUnique({
-          where: { linkedReceiptId: receiptId },
-          include: confirmedExpenseInclude
-        });
-        if (existing) return existing;
-      }
-      throw error;
-    }
-  }
 
   private validateFile(file: UploadFile): void {
     const allowed = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);

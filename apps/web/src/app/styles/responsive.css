@@ -92,16 +92,22 @@
     padding-left: 12px;
   }
 
-  .back-link span,
-  .trip-nav a span {
-    display: none;
-  }
-
-  .back-link,
-  .trip-nav a {
+  .back-link {
     width: 36px;
     justify-content: center;
+    overflow: hidden;
     padding: 0;
+    font-size: 0;
+  }
+
+  .trip-nav a {
+    min-width: 58px;
+    min-height: 48px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 5px 8px;
+    font-size: 0.68rem;
   }
 
   .workspace-main,

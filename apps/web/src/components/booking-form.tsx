@@ -2,6 +2,7 @@ import type { Booking, ItineraryEvent } from "@voyage/shared";
 import { Save } from "lucide-react";
 import { titleCase, toDateTimeInput } from "../lib/format";
 import { BOOKING_TYPES } from "../lib/options";
+import { PendingButton } from "./pending-button";
 
 export function BookingForm({
   action,
@@ -62,7 +63,7 @@ export function BookingForm({
         <input name="attachmentUrl" type="url" defaultValue={booking?.attachmentUrl || ""} placeholder="https://" />
       </label>
       <div className="form-actions field-span-2">
-        <button className="button button-primary" type="submit"><Save size={16} /> {submitLabel}</button>
+        <PendingButton className="button button-primary" type="submit" pendingLabel="儲存中…"><Save size={16} /> {submitLabel}</PendingButton>
       </div>
     </form>
   );

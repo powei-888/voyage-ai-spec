@@ -49,20 +49,46 @@ export class AiProposalsService {
         name: true,
         destinationCity: true,
         destinationCountry: true,
-        _count: {
-          select: { events: true }
-        }
+        budgetAmount: true,
+        baseCurrency: true,
+        days: {
+          orderBy: { dayIndex: "asc" },
+          select: {
+            dayIndex: true,
+            date: true,
+            events: {
+              orderBy: [{ sortOrder: "asc" }, { startTime: "asc" }],
+              select: {
+                title: true,
+                startTime: true,
+                endTime: true,
+                locationName: true
+              }
+            }
+          }
+        },
+        _count: { select: { events: true } }
       }
     });
     if (!trip) {
       throw DomainError.notFound("TRIP_NOT_FOUND", "Trip not found.");
     }
-    const [activeExpenseCount, pendingReceiptCount] = await Promise.all([
-      this.prisma.expense.count({ where: { tripId, status: "active" } }),
-      this.prisma.receipt.count({
-        where: { tripId, ocrStatus: ReceiptStatus.extracted }
-      })
-    ]);
+    const [activeExpenseCount, pendingReceiptCount, expenseTotal, categoryTotals] =
+      await Promise.all([
+        this.prisma.expense.count({ where: { tripId, status: "active" } }),
+        this.prisma.receipt.count({
+          where: { tripId, ocrStatus: ReceiptStatus.extracted }
+        }),
+        this.prisma.expense.aggregate({
+          where: { tripId, status: "active" },
+          _sum: { amount: true }
+        }),
+        this.prisma.expense.groupBy({
+          by: ["category"],
+          where: { tripId, status: "active" },
+          _sum: { amount: true }
+        })
+      ]);
     const draft = await this.provider.propose({
       type: dto.type,
       inputText: dto.inputText?.trim(),
@@ -70,10 +96,26 @@ export class AiProposalsService {
         tripName: trip.name,
         destination:
           [trip.destinationCity, trip.destinationCountry].filter(Boolean).join(", ") ||
-          "Unspecified destination",
+          "未設定目的地",
         eventCount: trip._count.events,
         activeExpenseCount,
-        pendingReceiptCount
+        pendingReceiptCount,
+        budgetAmount: trip.budgetAmount?.toString() ?? null,
+        expenseTotal: expenseTotal._sum.amount?.toString() ?? "0",
+        baseCurrency: trip.baseCurrency,
+        categoryTotals: categoryTotals.map((item) => ({
+          category: item.category,
+          amount: item._sum.amount?.toString() ?? "0"
+        })),
+        days: trip.days.map((day) => ({
+          dayIndex: day.dayIndex,
+          date: day.date.toISOString().slice(0, 10),
+          events: day.events.map((event) => ({
+            ...event,
+            startTime: event.startTime?.toISOString() ?? null,
+            endTime: event.endTime?.toISOString() ?? null
+          }))
+        }))
       }
     });
 

@@ -2,12 +2,10 @@ import { ExpenseCategory, ReceiptStatus } from "@prisma/client";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
 import { SplitCalculatorService } from "../expenses/split-calculator.service";
-import { OcrProvider } from "./ocr-provider";
-import { ReceiptStorage } from "./receipt-storage";
+import { ReceiptConfirmationService } from "./receipt-confirmation.service";
 import { ConfirmReceiptDto } from "./receipts.dto";
-import { ReceiptsService } from "./receipts.service";
 
-describe("ReceiptsService confirmation", () => {
+describe("ReceiptConfirmationService", () => {
   it("returns the canonical expense when the same receipt is confirmed twice", async () => {
     const expenseId = "expense-1";
     let confirmed = false;
@@ -56,12 +54,10 @@ describe("ReceiptsService confirmation", () => {
       requireMember: jest.fn().mockResolvedValue({ id: "member-1" }),
       assertMembersBelongToTrip: jest.fn().mockResolvedValue(undefined)
     };
-    const service = new ReceiptsService(
+    const service = new ReceiptConfirmationService(
       prisma as unknown as PrismaService,
       access as unknown as TripAccessService,
-      new SplitCalculatorService(),
-      {} as OcrProvider,
-      {} as ReceiptStorage
+      new SplitCalculatorService()
     );
     const dto: ConfirmReceiptDto = {
       title: "Lunch",
@@ -69,6 +65,8 @@ describe("ReceiptsService confirmation", () => {
       currency: "JPY",
       category: ExpenseCategory.food,
       payerMemberId: "member-1",
+      splitMethod: "equal",
+      splitShares: [],
       participantMemberIds: ["member-1", "member-2"]
     };
 

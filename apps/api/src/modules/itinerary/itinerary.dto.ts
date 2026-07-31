@@ -4,12 +4,14 @@ import {
   IsArray,
   IsEnum,
   IsISO8601,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Length,
   Matches,
-  MaxLength
+  MaxLength,
+  Min
 } from "class-validator";
 import { EventCategory } from "@prisma/client";
 
@@ -114,6 +116,17 @@ export class UpdateEventDto {
   @ArrayUnique()
   @IsString({ each: true })
   participantMemberIds?: string[];
+}
+
+export class MoveEventDto {
+  @IsString()
+  @IsNotEmpty()
+  targetDayId!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  targetIndex?: number;
 }
 
 export class ReorderEventsDto {

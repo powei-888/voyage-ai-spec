@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { AIProposalType } from "@prisma/client";
-import { AiProvider, ProposalDraft } from "./ai-provider";
+import { AiProvider, ProposalDraft, ProposalContext } from "./ai-provider";
 
 @Injectable()
 export class MockAiProvider implements AiProvider {
@@ -8,29 +8,12 @@ export class MockAiProvider implements AiProvider {
     const { context } = input;
     switch (input.type) {
       case AIProposalType.itinerary_check:
-        return {
-          summary:
-            context.eventCount > 6
-              ? `${context.tripName} 的行程較緊湊，建議在活動之間保留彈性時間。`
-              : `${context.tripName} 目前共有 ${context.eventCount} 個行程，整體安排仍有餘裕。`,
-          proposedJson: {
-            kind: "itinerary_check",
-            warnings: context.eventCount > 6 ? ["high_event_count"] : [],
-            operations: []
-          }
-        };
+        return this.itineraryCheck(context);
       case AIProposalType.expense_summary:
-        return {
-          summary: `${context.tripName} 目前已記錄 ${context.activeExpenseCount} 筆有效支出。`,
-          proposedJson: {
-            kind: "expense_summary",
-            activeExpenseCount: context.activeExpenseCount,
-            pendingReceiptCount: context.pendingReceiptCount
-          }
-        };
+        return this.expenseSummary(context);
       case AIProposalType.itinerary_update:
         return {
-          summary: "行程調整草稿已建立，目前尚未變更任何行程。",
+          summary: "行程調整草稿已建立；目前沒有可安全自動套用的操作。",
           proposedJson: { kind: "itinerary_update", operations: [] }
         };
       case AIProposalType.receipt_review:
@@ -43,14 +26,67 @@ export class MockAiProvider implements AiProvider {
         };
       case AIProposalType.booking_parse:
         return {
-          summary: "v0.1 以草稿形式呈現預訂解析結果。",
-          proposedJson: { kind: "booking_parse", draft: true }
+          summary: "預訂解析需要外部文件模型，目前保留為人工建立草稿。",
+          proposedJson: { kind: "booking_parse", available: false }
         };
       case AIProposalType.memory_draft:
         return {
-          summary: "旅程回憶生成功能規劃於基礎 MVP 之後提供。",
+          summary: "旅程回憶需要照片與事件內容，目前資料仍不足。",
           proposedJson: { kind: "memory_draft", available: false }
         };
     }
+  }
+
+  private itineraryCheck(context: ProposalContext): ProposalDraft {
+    const warnings: string[] = [];
+    for (const day of context.days) {
+      if (day.events.length > 5) {
+        warnings.push(`第 ${day.dayIndex} 天共有 ${day.events.length} 個行程，建議保留空檔。`);
+      }
+      const timed = day.events
+        .filter((event) => event.startTime)
+        .sort((a, b) => a.startTime!.localeCompare(b.startTime!));
+      for (let index = 1; index < timed.length; index += 1) {
+        const previous = timed[index - 1]!;
+        const current = timed[index]!;
+        if (previous.endTime && previous.endTime > current.startTime!) {
+          warnings.push(`第 ${day.dayIndex} 天「${previous.title}」與「${current.title}」時間重疊。`);
+        }
+      }
+    }
+    return {
+      summary: warnings.length
+        ? `找到 ${warnings.length} 個需要留意的行程安排。`
+        : `${context.tripName} 的時間安排目前沒有明顯衝突。`,
+      proposedJson: {
+        kind: "itinerary_check",
+        checkedDays: context.days.length,
+        warnings,
+        operations: []
+      }
+    };
+  }
+
+  private expenseSummary(context: ProposalContext): ProposalDraft {
+    const total = Number(context.expenseTotal);
+    const budget = context.budgetAmount ? Number(context.budgetAmount) : null;
+    const ratio = budget && budget > 0 ? Math.round((total / budget) * 100) : null;
+    const largest = [...context.categoryTotals].sort(
+      (a, b) => Number(b.amount) - Number(a.amount)
+    )[0];
+    const budgetText = ratio === null ? "尚未設定預算" : `已使用預算 ${ratio}%`;
+    return {
+      summary: `${context.tripName} 已記錄 ${context.activeExpenseCount} 筆支出，${budgetText}。`,
+      proposedJson: {
+        kind: "expense_summary",
+        currency: context.baseCurrency,
+        recordedTotal: context.expenseTotal,
+        budgetAmount: context.budgetAmount,
+        budgetUsagePercent: ratio,
+        largestCategory: largest?.category ?? null,
+        largestCategoryAmount: largest?.amount ?? null,
+        pendingReceiptCount: context.pendingReceiptCount
+      }
+    };
   }
 }

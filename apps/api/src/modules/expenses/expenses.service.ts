@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { ExpenseStatus } from "@prisma/client";
+import { ExpenseSplitMethod, ExpenseStatus } from "@prisma/client";
 import { parseDateOnly } from "../../common/date-utils";
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
@@ -61,11 +61,10 @@ export class ExpensesService {
         category: dto.category,
         expenseDate: dto.expenseDate ? parseDateOnly(dto.expenseDate) : null,
         payerMemberId: dto.payerMemberId,
+        splitMethod: dto.splitMethod,
         linkedEventId: dto.linkedEventId || null,
         createdByMemberId: actor.id,
-        participants: {
-          create: shares
-        }
+        participants: { create: shares }
       },
       include: expenseInclude
     });
@@ -86,18 +85,25 @@ export class ExpensesService {
       throw DomainError.notFound("EXPENSE_NOT_FOUND", "Expense not found.");
     }
 
+    const existingShares = existing.participants.map((item) => ({
+      memberId: item.memberId,
+      shareAmount: item.shareAmount.toString()
+    }));
     const merged: CreateExpenseDto = {
       title: dto.title ?? existing.title,
       merchant: dto.merchant ?? existing.merchant ?? undefined,
       amount: dto.amount ?? existing.amount.toString(),
       currency: dto.currency ?? existing.currency,
       category: dto.category ?? existing.category,
-      expenseDate: dto.expenseDate === undefined
-        ? existing.expenseDate?.toISOString().slice(0, 10)
-        : dto.expenseDate ?? undefined,
+      expenseDate:
+        dto.expenseDate === undefined
+          ? existing.expenseDate?.toISOString().slice(0, 10)
+          : dto.expenseDate ?? undefined,
       payerMemberId: dto.payerMemberId ?? existing.payerMemberId,
+      splitMethod: dto.splitMethod ?? existing.splitMethod,
       participantMemberIds:
-        dto.participantMemberIds ?? existing.participants.map((item) => item.memberId),
+        dto.participantMemberIds ?? existingShares.map((item) => item.memberId),
+      splitShares: dto.splitShares ?? existingShares,
       linkedEventId:
         dto.linkedEventId === undefined
           ? existing.linkedEventId ?? undefined
@@ -120,6 +126,7 @@ export class ExpensesService {
           category: merged.category,
           expenseDate: merged.expenseDate ? parseDateOnly(merged.expenseDate) : null,
           payerMemberId: merged.payerMemberId,
+          splitMethod: merged.splitMethod,
           linkedEventId: dto.linkedEventId === null ? null : merged.linkedEventId,
           status: dto.status
         },
@@ -160,6 +167,9 @@ export class ExpensesService {
             status: true,
             participants: { select: { memberId: true, shareAmount: true } }
           }
+        },
+        settlements: {
+          select: { fromMemberId: true, toMemberId: true, amount: true }
         }
       }
     });
@@ -176,7 +186,11 @@ export class ExpensesService {
           shareAmount: participant.shareAmount.toString()
         }))
       })),
-      trip.baseCurrency
+      trip.baseCurrency,
+      trip.settlements.map((settlement) => ({
+        ...settlement,
+        amount: settlement.amount.toString()
+      }))
     );
   }
 
@@ -191,13 +205,22 @@ export class ExpensesService {
     if (dto.currency !== trip.baseCurrency) {
       throw new DomainError(
         "CURRENCY_MISMATCH",
-        `v0.1 expenses must use the trip base currency (${trip.baseCurrency}).`,
+        `Expenses must use the trip base currency (${trip.baseCurrency}).`,
         HttpStatus.UNPROCESSABLE_ENTITY
       );
     }
+    const shares =
+      dto.splitMethod === ExpenseSplitMethod.custom
+        ? this.split.customSplit(dto.amount, dto.currency, dto.splitShares)
+        : this.split.equalSplit(
+            dto.amount,
+            dto.currency,
+            dto.payerMemberId,
+            dto.participantMemberIds
+          );
     await this.access.assertMembersBelongToTrip(tripId, [
       dto.payerMemberId,
-      ...dto.participantMemberIds
+      ...shares.map((share) => share.memberId)
     ]);
     if (dto.linkedEventId) {
       const event = await this.prisma.itineraryEvent.findFirst({
@@ -208,11 +231,6 @@ export class ExpensesService {
         throw new DomainError("INVALID_LINKED_EVENT", "Linked event is not in this trip.");
       }
     }
-    return this.split.equalSplit(
-      dto.amount,
-      dto.currency,
-      dto.payerMemberId,
-      dto.participantMemberIds
-    );
+    return shares;
   }
 }

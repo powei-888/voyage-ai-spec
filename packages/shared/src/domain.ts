@@ -1,3 +1,16 @@
+export type LocalUser = {
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+export type AuthSession = {
+  token: string;
+  expiresAt: string;
+  user: LocalUser;
+};
+
 export type RecordCounts = {
   members: number;
   events: number;
@@ -85,6 +98,7 @@ export type Expense = {
   linkedReceiptId: string | null;
   linkedEventId: string | null;
   status: "active" | "voided";
+  splitMethod: "equal" | "custom";
   payerMember: { id: string; displayName: string };
   participants: ExpenseParticipant[];
   linkedEvent: { id: string; title: string } | null;
@@ -104,6 +118,21 @@ export type ExpenseBalances = {
     toMemberId: string;
     amount: string;
   }>;
+};
+
+export type Settlement = {
+  id: string;
+  tripId: string;
+  fromMemberId: string;
+  toMemberId: string;
+  amount: string;
+  currency: string;
+  note: string | null;
+  settledAt: string;
+  createdAt: string;
+  fromMember: { id: string; displayName: string };
+  toMember: { id: string; displayName: string };
+  createdByMember: { id: string; displayName: string } | null;
 };
 
 export type ReceiptExtraction = {

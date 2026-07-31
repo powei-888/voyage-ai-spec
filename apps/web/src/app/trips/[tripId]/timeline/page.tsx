@@ -16,6 +16,8 @@ import {
   reorderEventsAction,
   updateEventAction
 } from "../../../actions/itinerary-actions";
+import { ConfirmForm } from "../../../../components/confirm-form";
+import { DraggableEvent } from "../../../../components/draggable-event";
 import { EmptyState } from "../../../../components/empty-state";
 import { Notice } from "../../../../components/notice";
 import { PageHeading } from "../../../../components/page-heading";
@@ -103,7 +105,14 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
             ) : (
               <div className="event-list">
                 {selectedDay.events.map((event, index) => (
-                  <article className="event-row" key={event.id}>
+                  <DraggableEvent
+                    tripId={tripId}
+                    dayId={selectedDay.id}
+                    eventId={event.id}
+                    targetIndex={index}
+                    key={event.id}
+                  >
+                  <article className="event-row">
                     <div className="event-row-time">
                       <strong>{formatTime(event.startTime)}</strong>
                       <span>{event.endTime ? formatTime(event.endTime) : ""}</span>
@@ -134,6 +143,14 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
                             <select name="category" defaultValue={event.category}>
                               {EVENT_CATEGORIES.map((category) => (
                                 <option value={category} key={category}>{titleCase(category)}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="field">
+                            <span>移到日期</span>
+                            <select name="targetDayId" defaultValue={selectedDay.id}>
+                              {days.map((day) => (
+                                <option value={day.id} key={day.id}>第 {day.dayIndex} 天 · {formatDate(day.date)}</option>
                               ))}
                             </select>
                           </label>
@@ -200,13 +217,17 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
                           <ArrowDown size={16} />
                         </button>
                       </form>
-                      <form action={deleteEventAction.bind(null, tripId, selectedDay.id, event.id)}>
+                      <ConfirmForm
+                        action={deleteEventAction.bind(null, tripId, selectedDay.id, event.id)}
+                        message="要刪除這個行程嗎？"
+                      >
                         <button className="icon-button danger" type="submit" title="刪除行程">
                           <Trash2 size={16} />
                         </button>
-                      </form>
+                      </ConfirmForm>
                     </div>
                   </article>
+                  </DraggableEvent>
                 ))}
               </div>
             )}

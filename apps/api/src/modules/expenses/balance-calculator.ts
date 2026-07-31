@@ -8,16 +8,28 @@ export type BalanceExpense = {
   status: ExpenseStatus;
   participants: Array<{ memberId: string; shareAmount: string }>;
 };
+export type BalanceSettlement = {
+  fromMemberId: string;
+  toMemberId: string;
+  amount: string;
+};
 
 export function calculateBalances(
   members: BalanceMember[],
   expenses: BalanceExpense[],
-  currency: string
+  currency: string,
+  completedSettlements: BalanceSettlement[] = []
 ) {
   const totals = new Map(
     members.map((member) => [
       member.id,
-      { memberId: member.id, displayName: member.displayName, paid: 0n, share: 0n }
+      {
+        memberId: member.id,
+        displayName: member.displayName,
+        paid: 0n,
+        share: 0n,
+        adjustment: 0n
+      }
     ])
   );
 
@@ -31,13 +43,21 @@ export function calculateBalances(
     }
   }
 
+  for (const settlement of completedSettlements) {
+    const amount = toMinorUnits(settlement.amount, currency);
+    const sender = totals.get(settlement.fromMemberId);
+    const receiver = totals.get(settlement.toMemberId);
+    if (sender) sender.adjustment += amount;
+    if (receiver) receiver.adjustment -= amount;
+  }
+
   const balances = [...totals.values()].map((total) => ({
     memberId: total.memberId,
     displayName: total.displayName,
     paidAmount: fromMinorUnits(total.paid, currency),
     shareAmount: fromMinorUnits(total.share, currency),
-    balance: fromMinorUnits(total.paid - total.share, currency),
-    balanceMinor: total.paid - total.share
+    balance: fromMinorUnits(total.paid - total.share + total.adjustment, currency),
+    balanceMinor: total.paid - total.share + total.adjustment
   }));
 
   const creditors = balances
@@ -57,19 +77,19 @@ export function calculateBalances(
   let creditorIndex = 0;
   let debtorIndex = 0;
   while (creditorIndex < creditors.length && debtorIndex < debtors.length) {
-    const creditor = creditors[creditorIndex]!;
+    const creditor = creditors[creditorIndex];
     const debtor = debtors[debtorIndex]!;
-    const amount = creditor.remaining < debtor.remaining
-      ? creditor.remaining
+    const amount = creditor!.remaining < debtor.remaining
+      ? creditor!.remaining
       : debtor.remaining;
     settlements.push({
       fromMemberId: debtor.memberId,
-      toMemberId: creditor.memberId,
+      toMemberId: creditor!.memberId,
       amount: fromMinorUnits(amount, currency)
     });
-    creditor.remaining -= amount;
+    creditor!.remaining -= amount;
     debtor.remaining -= amount;
-    if (creditor.remaining === 0n) creditorIndex += 1;
+    if (creditor!.remaining === 0n) creditorIndex += 1;
     if (debtor.remaining === 0n) debtorIndex += 1;
   }
 

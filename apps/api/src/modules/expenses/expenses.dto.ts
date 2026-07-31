@@ -1,6 +1,5 @@
-import { Transform } from "class-transformer";
+import { Type, Transform } from "class-transformer";
 import {
-  ArrayNotEmpty,
   ArrayUnique,
   IsArray,
   IsEnum,
@@ -10,12 +9,27 @@ import {
   Length,
   Matches,
   MaxLength,
-  ValidateIf
+  ValidateIf,
+  ValidateNested
 } from "class-validator";
-import { ExpenseCategory, ExpenseStatus } from "@prisma/client";
+import {
+  ExpenseCategory,
+  ExpenseSplitMethod,
+  ExpenseStatus
+} from "@prisma/client";
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const MONEY = /^\d+(?:\.\d{1,3})?$/;
+
+export class ExpenseSplitShareDto {
+  @IsString()
+  @IsNotEmpty()
+  memberId!: string;
+
+  @Transform(({ value }) => String(value))
+  @Matches(MONEY)
+  shareAmount!: string;
+}
 
 export class CreateExpenseDto {
   @IsString()
@@ -48,11 +62,21 @@ export class CreateExpenseDto {
   @IsNotEmpty()
   payerMemberId!: string;
 
+  @IsOptional()
+  @IsEnum(ExpenseSplitMethod)
+  splitMethod: ExpenseSplitMethod = ExpenseSplitMethod.equal;
+
+  @IsOptional()
   @IsArray()
-  @ArrayNotEmpty()
   @ArrayUnique()
   @IsString({ each: true })
-  participantMemberIds!: string[];
+  participantMemberIds: string[] = [];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ExpenseSplitShareDto)
+  splitShares: ExpenseSplitShareDto[] = [];
 
   @IsOptional()
   @IsString()
@@ -94,11 +118,20 @@ export class UpdateExpenseDto {
   payerMemberId?: string;
 
   @IsOptional()
+  @IsEnum(ExpenseSplitMethod)
+  splitMethod?: ExpenseSplitMethod;
+
+  @IsOptional()
   @IsArray()
-  @ArrayNotEmpty()
   @ArrayUnique()
   @IsString({ each: true })
   participantMemberIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ExpenseSplitShareDto)
+  splitShares?: ExpenseSplitShareDto[];
 
   @IsOptional()
   @ValidateIf((_object, value) => value !== null)

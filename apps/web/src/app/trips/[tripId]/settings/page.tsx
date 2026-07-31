@@ -1,7 +1,9 @@
 import type { Trip } from "@voyage/shared";
 import { Archive, Save, Settings } from "lucide-react";
 import { archiveTripAction, updateTripAction } from "../../../actions/trip-actions";
+import { ConfirmForm } from "../../../../components/confirm-form";
 import { Notice } from "../../../../components/notice";
+import { PendingButton } from "../../../../components/pending-button";
 import { PageHeading } from "../../../../components/page-heading";
 import { apiGet } from "../../../../lib/api";
 import { toDateInput } from "../../../../lib/format";
@@ -39,7 +41,7 @@ export default async function SettingsPage({ params, searchParams }: PageProps) 
             </select>
           </label>
           <label className="field"><span>預算</span><input name="budgetAmount" inputMode="decimal" defaultValue={trip.budgetAmount || ""} placeholder="未設定預算" /></label>
-          <div className="form-actions field-span-2"><button className="button button-primary" type="submit"><Save size={16} /> 儲存設定</button></div>
+          <div className="form-actions field-span-2"><PendingButton className="button button-primary" type="submit" pendingLabel="儲存中…"><Save size={16} /> 儲存設定</PendingButton></div>
         </form>
       </section>
 
@@ -50,9 +52,9 @@ export default async function SettingsPage({ params, searchParams }: PageProps) 
           <p>封存後仍可從旅程列表查看，所有資料都會保留。</p>
         </div>
         {trip.status === "active" ? (
-          <form action={archiveTripAction.bind(null, tripId)}>
-            <button className="button button-danger" type="submit"><Archive size={16} /> 封存旅程</button>
-          </form>
+          <ConfirmForm action={archiveTripAction.bind(null, tripId)} message="要封存這趟旅程嗎？資料會保留，但旅程將標記為已封存。">
+            <PendingButton className="button button-danger" type="submit" pendingLabel="封存中…"><Archive size={16} /> 封存旅程</PendingButton>
+          </ConfirmForm>
         ) : <span className="status-pill status-archived">已封存</span>}
       </section>
     </div>

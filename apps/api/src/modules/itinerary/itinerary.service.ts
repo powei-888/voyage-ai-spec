@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
-import { CreateEventDto, ReorderEventsDto, UpdateEventDto } from "./itinerary.dto";
+import { CreateEventDto, MoveEventDto, ReorderEventsDto, UpdateEventDto } from "./itinerary.dto";
 
 const eventInclude = {
   participants: {
@@ -174,6 +174,81 @@ export class ItineraryService {
       )
     );
     return this.listDays(userId, tripId);
+  }
+
+  async moveEvent(
+    userId: string,
+    tripId: string,
+    eventId: string,
+    dto: MoveEventDto
+  ) {
+    await this.access.requireMember(tripId, userId);
+    const [event, targetDay] = await Promise.all([
+      this.prisma.itineraryEvent.findFirst({
+        where: { id: eventId, tripId },
+        include: { day: { select: { date: true } } }
+      }),
+      this.prisma.itineraryDay.findFirst({
+        where: { id: dto.targetDayId, tripId }
+      })
+    ]);
+    if (!event) {
+      throw DomainError.notFound("EVENT_NOT_FOUND", "Itinerary event not found.");
+    }
+    if (!targetDay) {
+      throw DomainError.notFound("ITINERARY_DAY_NOT_FOUND", "Target day not found.");
+    }
+    const targetEvents = await this.prisma.itineraryEvent.findMany({
+      where: { tripId, dayId: dto.targetDayId, id: { not: eventId } },
+      orderBy: [{ sortOrder: "asc" }, { startTime: "asc" }],
+      select: { id: true }
+    });
+    const targetIndex = dto.targetIndex ?? targetEvents.length;
+    if (targetIndex > targetEvents.length) {
+      throw new DomainError("INVALID_EVENT_POSITION", "Target position is out of range.");
+    }
+    const targetIds = targetEvents.map((item) => item.id);
+    targetIds.splice(targetIndex, 0, eventId);
+
+    const dayOffset = targetDay.date.getTime() - event.day.date.getTime();
+    const shiftedStart = event.startTime && event.dayId !== dto.targetDayId
+      ? new Date(event.startTime.getTime() + dayOffset)
+      : event.startTime;
+    const shiftedEnd = event.endTime && event.dayId !== dto.targetDayId
+      ? new Date(event.endTime.getTime() + dayOffset)
+      : event.endTime;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.itineraryEvent.update({
+        where: { id: eventId },
+        data: {
+          dayId: dto.targetDayId,
+          startTime: shiftedStart,
+          endTime: shiftedEnd
+        }
+      });
+      if (event.dayId !== dto.targetDayId) {
+        const sourceEvents = await tx.itineraryEvent.findMany({
+          where: { tripId, dayId: event.dayId },
+          orderBy: [{ sortOrder: "asc" }, { startTime: "asc" }],
+          select: { id: true }
+        });
+        await Promise.all(
+          sourceEvents.map((item, sortOrder) =>
+            tx.itineraryEvent.update({
+              where: { id: item.id },
+              data: { sortOrder }
+            })
+          )
+        );
+      }
+      await Promise.all(
+        targetIds.map((id, sortOrder) =>
+          tx.itineraryEvent.update({ where: { id }, data: { sortOrder } })
+        )
+      );
+    });
+    return this.getEvent(userId, tripId, eventId);
   }
 
   async deleteEvent(userId: string, tripId: string, eventId: string) {
