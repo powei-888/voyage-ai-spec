@@ -58,7 +58,7 @@ export default async function ReceiptsPage({ params, searchParams }: PageProps) 
       </section>
 
       <section className="form-panel upload-panel" id="upload">
-        <div className="section-heading"><div><p className="eyebrow">模擬 OCR</p><h2>上傳收據</h2></div></div>
+        <div className="section-heading"><div><p className="eyebrow">地端 OCR + Qwen</p><h2>上傳收據</h2></div></div>
         <form action={uploadReceiptAction.bind(null, tripId)} className="upload-form">
           <label className="file-drop">
             <Upload size={24} />

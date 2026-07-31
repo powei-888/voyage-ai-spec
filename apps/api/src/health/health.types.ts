@@ -8,4 +8,9 @@ export type HealthPayload = {
   service: string;
   timestamp: string;
   version: string;
+  providers: {
+    ai: string;
+    ocr: string;
+    model: string;
+  };
 };

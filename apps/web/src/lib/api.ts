@@ -46,6 +46,7 @@ const API_ERROR_MESSAGES: Record<string, string> = {
   RECEIPT_NOT_EDITABLE: "此收據草稿目前無法編輯。",
   RECEIPT_ALREADY_CONFIRMED: "已確認的收據不能刪除。",
   RECEIPT_OCR_FAILED: "收據辨識失敗，請重新上傳。",
+  LOCAL_AI_UNAVAILABLE: "地端 AI 暫時無法回應，請稍後再試。",
   PROPOSAL_ALREADY_DECIDED: "此提案已完成決策。",
   NOT_FOUND: "找不到指定資料。",
   CONFLICT: "已有相同資料。",

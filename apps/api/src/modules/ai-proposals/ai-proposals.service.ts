@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { AIProposalStatus, ReceiptStatus } from "@prisma/client";
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
@@ -89,35 +89,45 @@ export class AiProposalsService {
           _sum: { amount: true }
         })
       ]);
-    const draft = await this.provider.propose({
-      type: dto.type,
-      inputText: dto.inputText?.trim(),
-      context: {
-        tripName: trip.name,
-        destination:
-          [trip.destinationCity, trip.destinationCountry].filter(Boolean).join(", ") ||
-          "未設定目的地",
-        eventCount: trip._count.events,
-        activeExpenseCount,
-        pendingReceiptCount,
-        budgetAmount: trip.budgetAmount?.toString() ?? null,
-        expenseTotal: expenseTotal._sum.amount?.toString() ?? "0",
-        baseCurrency: trip.baseCurrency,
-        categoryTotals: categoryTotals.map((item) => ({
-          category: item.category,
-          amount: item._sum.amount?.toString() ?? "0"
-        })),
-        days: trip.days.map((day) => ({
-          dayIndex: day.dayIndex,
-          date: day.date.toISOString().slice(0, 10),
-          events: day.events.map((event) => ({
-            ...event,
-            startTime: event.startTime?.toISOString() ?? null,
-            endTime: event.endTime?.toISOString() ?? null
+    let draft: Awaited<ReturnType<AiProvider["propose"]>>;
+    try {
+      draft = await this.provider.propose({
+        type: dto.type,
+        inputText: dto.inputText?.trim(),
+        context: {
+          tripName: trip.name,
+          destination:
+            [trip.destinationCity, trip.destinationCountry].filter(Boolean).join(", ") ||
+            "未設定目的地",
+          eventCount: trip._count.events,
+          activeExpenseCount,
+          pendingReceiptCount,
+          budgetAmount: trip.budgetAmount?.toString() ?? null,
+          expenseTotal: expenseTotal._sum.amount?.toString() ?? "0",
+          baseCurrency: trip.baseCurrency,
+          categoryTotals: categoryTotals.map((item) => ({
+            category: item.category,
+            amount: item._sum.amount?.toString() ?? "0"
+          })),
+          days: trip.days.map((day) => ({
+            dayIndex: day.dayIndex,
+            date: day.date.toISOString().slice(0, 10),
+            events: day.events.map((event) => ({
+              ...event,
+              startTime: event.startTime?.toISOString() ?? null,
+              endTime: event.endTime?.toISOString() ?? null
+            }))
           }))
-        }))
-      }
-    });
+        }
+      });
+    } catch (error) {
+      throw new DomainError(
+        "LOCAL_AI_UNAVAILABLE",
+        "Local AI analysis is temporarily unavailable.",
+        HttpStatus.SERVICE_UNAVAILABLE,
+        { cause: error instanceof Error ? error.message : "Unknown error" }
+      );
+    }
 
     return this.prisma.aIProposal.create({
       data: {

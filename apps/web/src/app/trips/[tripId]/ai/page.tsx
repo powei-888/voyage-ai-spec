@@ -87,7 +87,7 @@ export default async function AiPage({ params, searchParams }: PageProps) {
       </section>
 
       <section className="form-panel" id="new-proposal">
-        <div className="section-heading"><div><p className="eyebrow">模擬 AI 服務</p><h2>建立提案</h2></div></div>
+        <div className="section-heading"><div><p className="eyebrow">地端 Qwen</p><h2>建立提案</h2></div></div>
         <form action={createProposalAction.bind(null, tripId)} className="form-grid">
           <label className="field">
             <span>分析類型</span>

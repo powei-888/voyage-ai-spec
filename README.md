@@ -18,7 +18,7 @@ AI should reduce travel chaos, but users must stay in control.
 - Expense records
 - Equal and custom split calculation
 - Completed repayment records and remaining balance calculation
-- Receipt OCR confirmation flow with mock OCR first
+- On-premise receipt OCR and Qwen vision confirmation flow
 - Booking hub
 - AI proposal review and decision lifecycle
 - Local account authentication with expiring server sessions
@@ -36,7 +36,7 @@ AI should reduce travel chaos, but users must stay in control.
 - Jest and ts-jest
 - Docker Compose for local PostgreSQL
 
-Real AI, OCR, object storage, queues, email verification, and social login remain outside v0.2. Provider and storage interfaces keep integrations replaceable; the running workspace uses deterministic local analysis, mock OCR, controlled receipt storage, and password-based accounts intended for a trusted private network.
+The running workspace uses on-premise Qwen 3.5 through Ollama for AI proposals and structured receipt extraction. Images use CUBI EasyOCR plus Qwen vision, while PDFs use the CUBI parser plus Qwen. No receipt or trip content is sent to an external AI provider. Object storage, queues, email verification, and social login remain outside v0.2.
 
 ## Documentation
 
@@ -66,6 +66,9 @@ packages/shared             Shared API and domain types
 - Node.js 20+
 - npm 10+
 - Docker with Docker Compose
+- Ollama at http://127.0.0.1:11434 with qwen3.5:9b
+- CUBI OCR at http://127.0.0.1:11438
+- CUBI PDF parser at http://127.0.0.1:11436
 
 ### Setup
 
@@ -98,6 +101,16 @@ Default local services:
 
 Root scripts load `.env` through `dotenv-cli`. If port 5432 is occupied, update both `POSTGRES_PORT` and the port inside `DATABASE_URL`, then restart PostgreSQL.
 
+### Local AI and OCR
+
+`AI_PROVIDER=local` and `OCR_PROVIDER=local` are the defaults. AI proposals call the configured Ollama model with the current itinerary, expense, budget, and receipt counts, then store the result as a reviewable proposal. Accepting a proposal records the decision but does not let the model mutate canonical trip data.
+
+Receipt images use EasyOCR text plus Qwen vision. PDF receipts use CUBI parser text plus Qwen. Both paths create editable receipt drafts and require user confirmation before an expense is created.
+
+`LOCAL_LLM_KEEP_ALIVE=0` unloads Qwen after each request so EasyOCR and the language model can share a 16 GB GPU. Voyage serializes its own local inference work; when EasyOCR is temporarily unavailable, image receipts fall back to Qwen vision. Set either provider to `mock` only for isolated development without the local model services.
+
+The API health response includes the selected AI provider, OCR provider, and model name.
+
 ### Local authentication
 
 The API stores scrypt password hashes and opaque, hashed session tokens. The web app keeps the session token in an HttpOnly cookie and forwards it as a Bearer token from server-side requests. Trip-scoped requests still verify membership, and owner-only operations remain protected.
@@ -105,7 +118,7 @@ The API stores scrypt password hashes and opaque, hashed session tokens. The web
 Seeded login:
 
 ```text
-Email: demo.local
+Email: demo@voyage.local
 Password: voyage-demo
 ```
 
@@ -164,6 +177,6 @@ POST            /api/trips/:tripId/ai-proposals/:proposalId/reject
 
 ### Receipt and AI boundaries
 
-Receipt upload accepts JPEG, PNG, WebP, or PDF files up to 8 MB. Mock OCR creates an editable draft; only explicit confirmation creates the canonical expense. `Expense.linkedReceiptId` is the single unique receipt-to-expense relation, so repeated confirmation returns the same expense.
+Receipt upload accepts JPEG, PNG, WebP, or PDF files up to 8 MB. Local OCR and Qwen create an editable draft; only explicit confirmation creates the canonical expense. `Expense.linkedReceiptId` is the single unique receipt-to-expense relation, so repeated confirmation returns the same expense.
 
-AI requests create stored proposals. Accept and reject are explicit state transitions. The deterministic provider never calls an external API or mutates trip data directly; itinerary checks inspect actual event time ranges, and expense summaries inspect current budget and category totals.
+AI requests create stored proposals. Accept and reject are explicit state transitions. The local Qwen provider never calls an external API or mutates trip data directly; prompts include the current itinerary, budget, category totals, and pending receipt count.
