@@ -1,0 +1,272 @@
+.empty-state {
+  display: flex;
+  min-height: 150px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 24px;
+  text-align: center;
+}
+
+.empty-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  background: #eef2f1;
+  color: var(--muted);
+}
+
+.empty-state h3 {
+  font-size: 0.9rem;
+}
+
+.empty-state p {
+  max-width: 380px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 10px;
+}
+
+.metric {
+  display: flex;
+  min-height: 122px;
+  flex-direction: column;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--blue);
+  border-radius: 6px;
+  background: white;
+}
+
+.metric:nth-child(2) {
+  border-top-color: var(--teal);
+}
+
+.metric:nth-child(3) {
+  border-top-color: var(--gold);
+}
+
+.metric:nth-child(4) {
+  border-top-color: var(--coral);
+}
+.metric:nth-child(5) {
+  border-top-color: #7a5ba8;
+}
+
+
+.metric > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.metric strong {
+  margin-top: auto;
+  font-size: 1.38rem;
+  line-height: 1.3;
+}
+
+.metric small {
+  color: var(--faint);
+  font-size: 0.69rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.8fr);
+  gap: 14px;
+}
+
+.timeline-preview,
+.booking-preview-list,
+.simple-list,
+.event-list,
+.expense-list,
+.booking-list,
+.member-list,
+.proposal-list,
+.receipt-review-list {
+  display: grid;
+}
+
+.timeline-preview article {
+  display: grid;
+  min-height: 54px;
+  grid-template-columns: 72px 16px minmax(0, 1fr);
+  align-items: center;
+}
+
+.timeline-preview time {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.timeline-dot {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 0 1px var(--teal);
+}
+
+.timeline-dot::after {
+  position: absolute;
+  top: 9px;
+  left: 2px;
+  width: 1px;
+  height: 45px;
+  background: var(--line);
+  content: "";
+}
+
+.timeline-preview article:last-child .timeline-dot::after {
+  display: none;
+}
+
+.timeline-preview strong,
+.timeline-preview span {
+  display: block;
+}
+
+.timeline-preview strong {
+  font-size: 0.83rem;
+}
+
+.timeline-preview article > div span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.next-event {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 18px;
+  padding: 15px 0;
+}
+
+.event-time {
+  color: var(--teal);
+  font-weight: 750;
+}
+
+.next-event h3 {
+  margin-top: 3px;
+  font-size: 1rem;
+}
+
+.next-event p {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 0.77rem;
+}
+
+.booking-preview-list a,
+.simple-list article {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+
+.booking-preview-list a:first-child,
+.simple-list article:first-child {
+  border-top: 0;
+}
+
+.booking-type-icon,
+.booking-symbol,
+.expense-icon,
+.proposal-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--blue-soft);
+  color: #1f5b8f;
+  font-weight: 800;
+}
+
+.booking-type-icon {
+  width: 30px;
+  height: 30px;
+  font-size: 0.72rem;
+}
+
+.booking-preview-list a > span:nth-child(2),
+.simple-list article > div {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.booking-preview-list strong,
+.simple-list strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-preview-list small,
+.simple-list small {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.booking-preview-list code,
+.booking-code code {
+  font-size: 0.69rem;
+  font-weight: 800;
+}
+
+.day-tabs {
+  display: flex;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--line-strong);
+  scrollbar-width: thin;
+}
+
+.day-tabs a {
+  display: flex;
+  min-width: 104px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  padding: 9px 14px 10px;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+}
+
+.day-tabs a.active {
+  border-color: var(--teal);
+  color: var(--teal-dark);
+}
+
+.day-tabs strong {
+  font-size: 0.78rem;
+}
+
+.day-tabs span {
+  font-size: 0.68rem;
+}

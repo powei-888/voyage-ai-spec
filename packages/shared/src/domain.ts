@@ -1,0 +1,183 @@
+export type RecordCounts = {
+  members: number;
+  events: number;
+  expenses: number;
+  receipts: number;
+  bookings: number;
+  proposals: number;
+};
+
+export type Trip = {
+  id: string;
+  name: string;
+  destinationCountry: string | null;
+  destinationCity: string | null;
+  startDate: string;
+  endDate: string;
+  baseCurrency: string;
+  budgetAmount: string | null;
+  status: "active" | "archived";
+  ownerUserId: string;
+  owner?: { id: string; displayName: string; email: string };
+  _count: RecordCounts;
+  events?: Array<{ id: string; title: string; startTime: string | null }>;
+};
+
+export type TripMember = {
+  id: string;
+  tripId: string;
+  userId: string | null;
+  displayName: string;
+  role: "owner" | "member";
+  joinedAt: string | null;
+  user?: { id: string; email: string; avatarUrl: string | null } | null;
+};
+
+export type EventParticipant = {
+  memberId: string;
+  member: { id: string; displayName: string };
+};
+
+export type ItineraryEvent = {
+  id: string;
+  tripId: string;
+  dayId: string;
+  title: string;
+  category: string;
+  startTime: string | null;
+  endTime: string | null;
+  locationName: string | null;
+  address: string | null;
+  notes: string | null;
+  estimatedCostAmount: string | null;
+  estimatedCostCurrency: string | null;
+  sortOrder: number;
+  participants: EventParticipant[];
+  _count: { bookings: number; expenses: number };
+};
+
+export type ItineraryDay = {
+  id: string;
+  tripId: string;
+  date: string;
+  dayIndex: number;
+  title: string | null;
+  notes: string | null;
+  events: ItineraryEvent[];
+};
+
+export type ExpenseParticipant = {
+  memberId: string;
+  shareAmount: string;
+  member: { id: string; displayName: string };
+};
+
+export type Expense = {
+  id: string;
+  tripId: string;
+  title: string;
+  merchant: string | null;
+  amount: string;
+  currency: string;
+  category: string;
+  expenseDate: string | null;
+  payerMemberId: string;
+  linkedReceiptId: string | null;
+  linkedEventId: string | null;
+  status: "active" | "voided";
+  payerMember: { id: string; displayName: string };
+  participants: ExpenseParticipant[];
+  linkedEvent: { id: string; title: string } | null;
+};
+
+export type ExpenseBalances = {
+  currency: string;
+  members: Array<{
+    memberId: string;
+    displayName: string;
+    paidAmount: string;
+    shareAmount: string;
+    balance: string;
+  }>;
+  settlements: Array<{
+    fromMemberId: string;
+    toMemberId: string;
+    amount: string;
+  }>;
+};
+
+export type ReceiptExtraction = {
+  merchant: string;
+  amount: string;
+  currency: string;
+  date: string;
+  category: string;
+  confidenceScore: number;
+};
+
+export type Receipt = {
+  id: string;
+  tripId: string;
+  imageUrl: string;
+  imageOriginalName: string | null;
+  imageMimeType: string | null;
+  ocrStatus: "pending" | "processing" | "extracted" | "confirmed" | "failed";
+  extractedJson: ReceiptExtraction | null;
+  confidenceScore: string | null;
+  confirmedAt: string | null;
+  createdAt: string;
+  uploadedByMember: { id: string; displayName: string } | null;
+  confirmedByMember: { id: string; displayName: string } | null;
+  confirmedExpense: {
+    id: string;
+    title: string;
+    amount: string;
+    currency: string;
+  } | null;
+};
+
+export type Booking = {
+  id: string;
+  tripId: string;
+  type: string;
+  title: string;
+  provider: string | null;
+  confirmationCode: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  location: string | null;
+  attachmentUrl: string | null;
+  linkedEventId: string | null;
+  linkedEvent: { id: string; title: string } | null;
+  createdByMember: { id: string; displayName: string } | null;
+};
+
+export type AIProposal = {
+  id: string;
+  tripId: string;
+  type: string;
+  inputText: string | null;
+  summary: string;
+  proposedJson: Record<string, unknown>;
+  status: "pending" | "accepted" | "rejected" | "expired";
+  createdAt: string;
+  appliedAt: string | null;
+  createdByMember: { id: string; displayName: string } | null;
+  appliedByMember: { id: string; displayName: string } | null;
+};
+
+export type TripDashboard = {
+  trip: Trip;
+  todayEvents: ItineraryEvent[];
+  upcomingEvent: ItineraryEvent | null;
+  recordedExpenseAmount: string;
+  pendingReceipts: number;
+  pendingProposals: number;
+  upcomingBookings: Booking[];
+};
+
+export type ApiErrorPayload = {
+  code: string;
+  message: string;
+  details: Record<string, unknown>;
+};

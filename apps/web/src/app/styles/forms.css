@@ -1,0 +1,132 @@
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px 18px;
+}
+
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field > span,
+.check-group legend {
+  color: #475550;
+  font-size: 0.73rem;
+  font-weight: 750;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  outline: none;
+  background: white;
+  font-size: 0.84rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.field input,
+.field select {
+  height: 39px;
+  padding: 8px 10px;
+}
+
+.field textarea {
+  min-height: 82px;
+  resize: vertical;
+  padding: 9px 10px;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.file-drop:focus-within {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgb(8 120 108 / 12%);
+}
+
+.field input:disabled,
+.field select:disabled {
+  background: #f0f3f2;
+  color: var(--faint);
+}
+
+.field-span-2 {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  padding-top: 3px;
+}
+
+.compact-form {
+  padding: 16px 0 3px;
+}
+
+.input-affix {
+  display: flex;
+  height: 39px;
+  align-items: center;
+  gap: 7px;
+  padding-left: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  color: var(--muted);
+  background: white;
+}
+
+.input-affix:focus-within {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgb(8 120 108 / 12%);
+}
+
+.input-affix input {
+  height: 37px;
+  padding-left: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.input-affix input:focus {
+  box-shadow: none;
+}
+
+.check-group {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.check-group legend {
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.check-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface-muted);
+  font-size: 0.75rem;
+}
+
+.check-group input {
+  accent-color: var(--teal);
+}

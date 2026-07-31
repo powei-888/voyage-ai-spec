@@ -1,0 +1,257 @@
+.upload-form {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.file-drop {
+  position: relative;
+  display: flex;
+  min-height: 78px;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border: 1px dashed #98aaa5;
+  border-radius: 6px;
+  color: var(--teal);
+  cursor: pointer;
+}
+
+.file-drop span {
+  display: flex;
+  flex-direction: column;
+}
+
+.file-drop strong {
+  color: var(--ink);
+  font-size: 0.83rem;
+}
+
+.file-drop small {
+  color: var(--muted);
+  font-size: 0.69rem;
+}
+
+.file-drop input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.receipt-review {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.3fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+}
+
+.receipt-review + .receipt-review {
+  margin-top: 15px;
+}
+
+.receipt-preview {
+  position: relative;
+  display: grid;
+  min-height: 360px;
+  place-items: center;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+  background: #e9edec;
+}
+
+.receipt-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.receipt-preview > a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--teal);
+  font-weight: 700;
+}
+
+.confidence {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: rgb(23 33 31 / 88%);
+  color: white;
+  font-size: 0.66rem;
+  font-weight: 750;
+}
+
+.receipt-form {
+  padding: 20px;
+}
+
+.state-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.state-confirmed,
+.state-accepted {
+  background: var(--teal);
+}
+
+.state-rejected,
+.state-failed {
+  background: var(--coral);
+}
+
+.state-pending,
+.state-processing,
+.state-extracted {
+  background: var(--gold);
+}
+
+.booking-symbol {
+  width: 40px;
+  height: 40px;
+}
+
+.booking-hotel,
+.booking-restaurant {
+  background: var(--gold-soft);
+  color: #805700;
+}
+
+.booking-activity,
+.booking-car_rental {
+  background: var(--coral-soft);
+  color: #9a392e;
+}
+
+.booking-row-main {
+  min-width: 170px;
+}
+
+.booking-code {
+  width: 118px;
+  flex: 0 0 118px;
+  text-align: right;
+}
+
+.booking-code span,
+.booking-code code {
+  display: block;
+}
+
+.booking-code span {
+  color: var(--faint);
+  font-size: 0.64rem;
+}
+
+.member-heading,
+.proposal-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.member-heading p {
+  margin-top: 2px;
+}
+
+.role-badge {
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 3px 7px;
+  background: #eef2f1;
+  color: #52615d;
+}
+
+.role-owner {
+  background: var(--gold-soft);
+  color: #805700;
+}
+
+.proposal-heading time {
+  flex: 0 0 auto;
+  color: var(--faint);
+  font-size: 0.68rem;
+}
+
+.proposal-prompt {
+  padding: 8px 10px;
+  border-left: 3px solid var(--line-strong);
+  background: var(--surface-muted);
+}
+
+.proposal-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.proposal-details div {
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.proposal-details dt {
+  color: var(--faint);
+  font-size: 0.63rem;
+  font-weight: 700;
+}
+
+.proposal-details dd {
+  overflow-wrap: anywhere;
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+
+.proposal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.count-badge {
+  display: grid;
+  min-width: 25px;
+  height: 25px;
+  place-items: center;
+  padding: 0 6px;
+  background: var(--gold-soft);
+  color: #805700;
+}
+
+.danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px;
+  border-color: #efc2bc;
+}
+
+.danger-zone > div > p:last-child {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.setup-hint {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}

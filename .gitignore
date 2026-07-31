@@ -6,6 +6,7 @@ dist/
 .next/
 coverage/
 *.tsbuildinfo
+uploads/
 
 # env
 .env

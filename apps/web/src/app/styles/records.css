@@ -1,0 +1,294 @@
+.event-row,
+.expense-row,
+.booking-row,
+.member-row,
+.proposal-row {
+  display: flex;
+  min-width: 0;
+  gap: 13px;
+  padding: 17px 0;
+  border-top: 1px solid var(--line);
+}
+
+.event-row:first-child,
+.expense-row:first-child,
+.booking-row:first-child,
+.member-row:first-child,
+.proposal-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.event-row:last-child,
+.expense-row:last-child,
+.booking-row:last-child,
+.member-row:last-child,
+.proposal-row:last-child {
+  padding-bottom: 0;
+}
+
+.event-row-time {
+  width: 64px;
+  flex: 0 0 64px;
+  color: var(--ink);
+}
+
+.event-row-time strong,
+.event-row-time span {
+  display: block;
+  font-size: 0.73rem;
+}
+
+.event-row-time span {
+  color: var(--faint);
+}
+
+.event-category {
+  width: 4px;
+  flex: 0 0 4px;
+  align-self: stretch;
+  border-radius: 3px;
+  background: var(--blue);
+}
+
+.category-restaurant,
+.category-food {
+  background: var(--coral);
+}
+
+.category-hotel,
+.category-shopping {
+  background: var(--gold);
+}
+
+.category-transport {
+  background: var(--teal);
+}
+
+.category-activity,
+.category-free_time {
+  background: #7a5ba8;
+}
+
+.event-row-main,
+.expense-main,
+.booking-row-main,
+.member-main,
+.proposal-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.event-row-main h3,
+.expense-main h3,
+.booking-row-main h3,
+.member-main h3,
+.proposal-main h3 {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.event-row-main > p,
+.expense-main p,
+.booking-row-main p,
+.member-main p,
+.proposal-prompt {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.category-label {
+  color: var(--faint);
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.inline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.71rem;
+}
+
+.inline-meta span {
+  gap: 4px;
+}
+
+.edit-drawer {
+  margin-top: 10px;
+}
+
+.edit-drawer summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--teal);
+  cursor: pointer;
+  font-size: 0.73rem;
+  font-weight: 700;
+  list-style: none;
+}
+
+.edit-drawer summary::-webkit-details-marker {
+  display: none;
+}
+
+.money-summary {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.65fr) minmax(0, 1.6fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+}
+
+.money-total {
+  display: flex;
+  min-height: 150px;
+  justify-content: center;
+  flex-direction: column;
+  padding: 22px;
+  background: var(--ink);
+  color: white;
+}
+
+.money-total span,
+.money-total small {
+  color: #b9c5c2;
+  font-size: 0.72rem;
+}
+
+.money-total strong {
+  margin: 5px 0 2px;
+  font-size: 1.65rem;
+}
+
+.balance-list {
+  display: grid;
+  align-content: center;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 12px 20px;
+}
+
+.balance-list > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
+}
+
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+}
+
+.member-avatar-large {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+}
+
+.balance-list > div > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.balance-list strong,
+.balance-list small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.balance-list strong {
+  font-size: 0.77rem;
+}
+
+.balance-list small {
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
+.balance-list b {
+  font-size: 0.76rem;
+}
+
+.positive {
+  color: var(--teal);
+}
+
+.negative {
+  color: var(--coral);
+}
+
+.settlement-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 13px;
+  border: 1px solid #ead598;
+  border-radius: 6px;
+  background: var(--gold-soft);
+  color: #654700;
+  font-size: 0.73rem;
+}
+
+.settlement-strip span {
+  padding-left: 9px;
+  border-left: 1px solid #d8bd6e;
+}
+
+.expense-icon,
+.proposal-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.expense-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 20px;
+}
+
+.expense-amount {
+  text-align: right;
+}
+
+.expense-amount strong,
+.expense-amount span {
+  display: block;
+}
+
+.expense-amount strong {
+  font-size: 0.87rem;
+}
+
+.expense-amount span {
+  color: var(--muted);
+  font-size: 0.69rem;
+}
+
+.expense-edit {
+  grid-column: 1 / -1;
+}
+
+.expense-row.is-voided {
+  opacity: 0.55;
+}
+
+.event-row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 4px;
+}

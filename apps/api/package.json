@@ -9,13 +9,18 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest",
     "prisma:generate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://voyage:voyage@localhost:5432/voyage_ai?schema=public}\" prisma generate --schema prisma/schema.prisma",
-    "prisma:validate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://voyage:voyage@localhost:5432/voyage_ai?schema=public}\" prisma validate --schema prisma/schema.prisma"
+    "prisma:validate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://voyage:voyage@localhost:5432/voyage_ai?schema=public}\" prisma validate --schema prisma/schema.prisma",
+    "prisma:migrate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://voyage:voyage@localhost:5432/voyage_ai?schema=public}\" prisma migrate dev --schema prisma/schema.prisma",
+    "prisma:seed": "DATABASE_URL=\"${DATABASE_URL:-postgresql://voyage:voyage@localhost:5432/voyage_ai?schema=public}\" prisma db seed --schema prisma/schema.prisma"
   },
   "dependencies": {
+    "@fastify/multipart": "^10.1.0",
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
     "@nestjs/platform-fastify": "^11.1.28",
     "@prisma/client": "5.22.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
@@ -26,5 +31,8 @@
     "jest": "^30.4.2",
     "prisma": "5.22.0",
     "ts-jest": "^29.4.12"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }

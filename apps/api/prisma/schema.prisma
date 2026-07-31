@@ -119,14 +119,14 @@ model Trip {
 }
 
 model TripMember {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   tripId      String
   userId      String?
   displayName String
-  role        TripRole @default(member)
+  role        TripRole  @default(member)
   joinedAt    DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   trip Trip  @relation(fields: [tripId], references: [id])
   user User? @relation(fields: [userId], references: [id])
@@ -142,6 +142,7 @@ model TripMember {
   createdProposals  AIProposal[]         @relation("AIProposalCreator")
   appliedProposals  AIProposal[]         @relation("AIProposalApplier")
 
+  @@unique([tripId, userId])
   @@index([tripId])
   @@index([userId])
   @@index([tripId, displayName])
@@ -216,6 +217,8 @@ model Receipt {
   tripId              String
   uploadedByMemberId  String?
   imageUrl            String
+  imageOriginalName   String?
+  imageMimeType       String?
   ocrStatus           ReceiptStatus @default(pending)
   extractedJson       Json?
   confidenceScore     Decimal?
@@ -227,6 +230,7 @@ model Receipt {
   trip              Trip        @relation(fields: [tripId], references: [id])
   uploadedByMember  TripMember? @relation("ReceiptUploader", fields: [uploadedByMemberId], references: [id])
   confirmedByMember TripMember? @relation("ReceiptConfirmer", fields: [confirmedByMemberId], references: [id])
+  /// Canonical confirmed expense, owned by Expense.linkedReceiptId.
   confirmedExpense  Expense?    @relation("ReceiptConfirmedExpense")
 
   @@index([tripId])
@@ -255,6 +259,7 @@ model Expense {
   trip            Trip                 @relation(fields: [tripId], references: [id])
   payerMember     TripMember           @relation("ExpensePayer", fields: [payerMemberId], references: [id])
   createdByMember TripMember?          @relation("ExpenseCreator", fields: [createdByMemberId], references: [id])
+  /// The single canonical receipt-to-expense relation; uniqueness makes confirmation idempotent.
   linkedReceipt   Receipt?             @relation("ReceiptConfirmedExpense", fields: [linkedReceiptId], references: [id])
   linkedEvent     ItineraryEvent?      @relation(fields: [linkedEventId], references: [id])
   participants    ExpenseParticipant[]
