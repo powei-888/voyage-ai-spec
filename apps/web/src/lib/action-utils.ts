@@ -43,7 +43,7 @@ export function redirectWithError(path: string, error: unknown): never {
       ? error.message
       : error instanceof Error
         ? error.message
-        : "The action could not be completed.";
+        : "無法完成此操作。";
   const separator = path.includes("?") ? "&" : "?";
   redirect(`${path}${separator}error=${encodeURIComponent(message)}`);
 }

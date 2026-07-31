@@ -19,7 +19,7 @@ export async function createExpenseAction(
   try {
     await apiSend(`/trips/${tripId}/expenses`, "POST", expensePayload(formData));
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=Expense%20added`);
+    redirect(`${path}?notice=${encodeURIComponent("已新增支出")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -38,7 +38,7 @@ export async function updateExpenseAction(
       expensePayload(formData, true)
     );
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=Expense%20updated`);
+    redirect(`${path}?notice=${encodeURIComponent("已更新支出")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -52,7 +52,7 @@ export async function voidExpenseAction(
   try {
     await apiSend(`/trips/${tripId}/expenses/${expenseId}`, "DELETE");
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=Expense%20voided`);
+    redirect(`${path}?notice=${encodeURIComponent("已作廢支出")}`);
   } catch (error) {
     redirectWithError(path, error);
   }

@@ -13,7 +13,7 @@ export async function createBookingAction(
   try {
     await apiSend(`/trips/${tripId}/bookings`, "POST", bookingPayload(formData));
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=Booking%20added`);
+    redirect(`${path}?notice=${encodeURIComponent("已新增預訂")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -32,7 +32,7 @@ export async function updateBookingAction(
       bookingPayload(formData, true)
     );
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=Booking%20updated`);
+    redirect(`${path}?notice=${encodeURIComponent("已更新預訂")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -46,7 +46,7 @@ export async function deleteBookingAction(
   try {
     await apiSend(`/trips/${tripId}/bookings/${bookingId}`, "DELETE");
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=Booking%20removed`);
+    redirect(`${path}?notice=${encodeURIComponent("已刪除預訂")}`);
   } catch (error) {
     redirectWithError(path, error);
   }

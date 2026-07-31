@@ -9,7 +9,7 @@ import { TripNav } from "./trip-nav";
 export function TripShell({ trip, children }: { trip: Trip; children: ReactNode }) {
   const destination =
     [trip.destinationCity, trip.destinationCountry].filter(Boolean).join(", ") ||
-    "Destination open";
+    "尚未設定目的地";
 
   return (
     <div className="app-frame">
@@ -17,7 +17,7 @@ export function TripShell({ trip, children }: { trip: Trip; children: ReactNode 
       <div className="workspace">
         <aside className="workspace-sidebar">
           <Link className="back-link" href="/">
-            <ChevronLeft size={15} /> All trips
+            <ChevronLeft size={15} /> 所有旅程
           </Link>
           <div className="trip-identity">
             <span className="trip-monogram" aria-hidden="true">

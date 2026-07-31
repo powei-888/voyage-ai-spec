@@ -16,7 +16,7 @@ export async function addMemberAction(
       email: optionalString(formData, "email")
     });
     revalidatePath(path);
-    redirect(`${path}?notice=Member%20added`);
+    redirect(`${path}?notice=${encodeURIComponent("已新增成員")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -34,7 +34,7 @@ export async function updateMemberAction(
       role: formString(formData, "role")
     });
     revalidatePath(path);
-    redirect(`${path}?notice=Member%20updated`);
+    redirect(`${path}?notice=${encodeURIComponent("已更新成員")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -48,7 +48,7 @@ export async function removeMemberAction(
   try {
     await apiSend(`/trips/${tripId}/members/${memberId}`, "DELETE");
     revalidatePath(path);
-    redirect(`${path}?notice=Member%20removed`);
+    redirect(`${path}?notice=${encodeURIComponent("已移除成員")}`);
   } catch (error) {
     redirectWithError(path, error);
   }

@@ -16,7 +16,7 @@ export async function createProposalAction(
       inputText: optionalString(formData, "inputText")
     });
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=Proposal%20created%20for%20review`);
+    redirect(`${path}?notice=${encodeURIComponent("已建立提案，等待審核")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -34,7 +34,8 @@ export async function decideProposalAction(
       "POST"
     );
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=Proposal%20${decision}ed`);
+    const notice = decision === "accept" ? "已接受提案" : "已拒絕提案";
+    redirect(`${path}?notice=${encodeURIComponent(notice)}`);
   } catch (error) {
     redirectWithError(path, error);
   }

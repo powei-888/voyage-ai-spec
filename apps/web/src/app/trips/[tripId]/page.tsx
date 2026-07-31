@@ -29,45 +29,45 @@ export default async function DashboardPage({ params, searchParams }: PageProps)
   return (
     <div className="page-stack">
       <PageHeading
-        eyebrow="Trip overview"
+        eyebrow="旅程總覽"
         title={trip.name}
         description={
           [trip.destinationCity, trip.destinationCountry].filter(Boolean).join(", ") ||
-          "Destination open"
+          "尚未設定目的地"
         }
         actions={
           <Link className="button button-primary" href={`/trips/${tripId}/timeline`}>
-            <CalendarClock size={17} /> Open timeline
+            <CalendarClock size={17} /> 開啟行程表
           </Link>
         }
       />
       <Notice error={query.error} notice={query.notice} />
 
-      <section className="metric-grid" aria-label="Trip summary">
+      <section className="metric-grid" aria-label="旅程摘要">
         <article className="metric">
-          <span><CreditCard size={17} /> Recorded</span>
+          <span><CreditCard size={17} /> 已記錄</span>
           <strong>{formatMoney(dashboard.recordedExpenseAmount, trip.baseCurrency)}</strong>
-          <small>{trip.budgetAmount ? `${formatMoney(trip.budgetAmount, trip.baseCurrency)} budget` : "No budget set"}</small>
+          <small>{trip.budgetAmount ? `預算 ${formatMoney(trip.budgetAmount, trip.baseCurrency)}` : "尚未設定預算"}</small>
         </article>
         <article className="metric">
-          <span><Users size={17} /> Members</span>
+          <span><Users size={17} /> 成員</span>
           <strong>{trip._count.members}</strong>
-          <small>Traveling together</small>
+          <small>同行成員</small>
         </article>
         <article className="metric">
-          <span><TicketCheck size={17} /> Bookings</span>
+          <span><TicketCheck size={17} /> 預訂</span>
           <strong>{trip._count.bookings}</strong>
-          <small>Saved reservations</small>
+          <small>已儲存的預訂</small>
         </article>
         <article className="metric metric-attention">
-          <span><ReceiptText size={17} /> Receipt review</span>
+          <span><ReceiptText size={17} /> 收據待確認</span>
           <strong>{dashboard.pendingReceipts}</strong>
-          <small>Waiting for confirmation</small>
+          <small>等待人工確認</small>
         </article>
         <article className="metric">
-          <span><Bot size={17} /> AI proposals</span>
+          <span><Bot size={17} /> AI 提案</span>
           <strong>{dashboard.pendingProposals}</strong>
-          <small>Pending decisions</small>
+          <small>等待決策</small>
         </article>
       </section>
 
@@ -75,11 +75,11 @@ export default async function DashboardPage({ params, searchParams }: PageProps)
         <section className="content-section dashboard-primary">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">{dashboard.todayEvents.length > 0 ? "Today" : "Next up"}</p>
-              <h2>{dashboard.todayEvents.length > 0 ? "Timeline" : "Upcoming event"}</h2>
+              <p className="eyebrow">{dashboard.todayEvents.length > 0 ? "今天" : "下一個行程"}</p>
+              <h2>{dashboard.todayEvents.length > 0 ? "行程表" : "即將到來的行程"}</h2>
             </div>
             <Link className="text-link" href={`/trips/${tripId}/timeline`}>
-              View all <ArrowRight size={15} />
+              查看全部 <ArrowRight size={15} />
             </Link>
           </div>
           {dashboard.todayEvents.length === 0 ? (
@@ -89,14 +89,14 @@ export default async function DashboardPage({ params, searchParams }: PageProps)
                 <div>
                   <span className="category-label">{titleCase(dashboard.upcomingEvent.category)}</span>
                   <h3>{dashboard.upcomingEvent.title}</h3>
-                  <p><MapPin size={15} /> {dashboard.upcomingEvent.locationName || "Location open"}</p>
+                  <p><MapPin size={15} /> {dashboard.upcomingEvent.locationName || "尚未設定地點"}</p>
                 </div>
               </article>
             ) : (
               <EmptyState
                 icon={CalendarClock}
-                title="Nothing scheduled"
-                body="Add the first event from the timeline."
+                title="尚無行程安排"
+                body="請從行程表新增第一個行程。"
               />
             )
           ) : (
@@ -118,22 +118,22 @@ export default async function DashboardPage({ params, searchParams }: PageProps)
         <aside className="content-section dashboard-side">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Upcoming</p>
-              <h2>Bookings</h2>
+              <p className="eyebrow">即將到來</p>
+              <h2>預訂</h2>
             </div>
             <TicketCheck size={18} />
           </div>
           {dashboard.upcomingBookings.length === 0 ? (
             <EmptyState
               icon={TicketCheck}
-              title="No upcoming bookings"
-              body="Add a flight, hotel, or activity booking."
+              title="沒有即將到來的預訂"
+              body="新增航班、住宿或活動預訂。"
             />
           ) : (
             <div className="booking-preview-list">
               {dashboard.upcomingBookings.map((booking) => (
                 <Link href={`/trips/${tripId}/bookings`} key={booking.id}>
-                  <span className="booking-type-icon">{booking.type.slice(0, 1).toUpperCase()}</span>
+                  <span className="booking-type-icon">{titleCase(booking.type).slice(0, 1)}</span>
                   <span>
                     <strong>{booking.title}</strong>
                     <small>{formatDateTime(booking.startTime)}</small>

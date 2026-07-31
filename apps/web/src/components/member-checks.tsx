@@ -5,7 +5,7 @@ export function MemberChecks({
   selectedIds = [],
   defaultAll = false,
   name = "participantMemberIds",
-  legend = "Participants"
+  legend = "參與成員"
 }: {
   members: TripMember[];
   selectedIds?: string[];

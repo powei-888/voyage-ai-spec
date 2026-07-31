@@ -13,7 +13,7 @@ export async function uploadReceiptAction(
   try {
     await apiUpload(`/trips/${tripId}/receipts`, formData);
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=Receipt%20extracted%20and%20ready%20for%20review`);
+    redirect(`${path}?notice=${encodeURIComponent("收據辨識完成，請確認內容")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -38,7 +38,7 @@ export async function confirmReceiptAction(
       linkedEventId: optionalString(formData, "linkedEventId")
     });
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=Receipt%20confirmed%20and%20expense%20created`);
+    redirect(`${path}?notice=${encodeURIComponent("已確認收據並建立支出")}`);
   } catch (error) {
     redirectWithError(path, error);
   }

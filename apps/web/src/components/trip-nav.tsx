@@ -14,14 +14,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items = [
-  { href: "", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/timeline", label: "Timeline", icon: CalendarDays },
-  { href: "/expenses", label: "Expenses", icon: CreditCard },
-  { href: "/receipts", label: "Receipts", icon: ReceiptText },
-  { href: "/bookings", label: "Bookings", icon: TicketCheck },
+  { href: "", label: "總覽", icon: LayoutDashboard },
+  { href: "/timeline", label: "行程表", icon: CalendarDays },
+  { href: "/expenses", label: "支出", icon: CreditCard },
+  { href: "/receipts", label: "收據", icon: ReceiptText },
+  { href: "/bookings", label: "預訂", icon: TicketCheck },
   { href: "/ai", label: "AI", icon: Bot },
-  { href: "/members", label: "Members", icon: Users },
-  { href: "/settings", label: "Settings", icon: Settings }
+  { href: "/members", label: "成員", icon: Users },
+  { href: "/settings", label: "設定", icon: Settings }
 ];
 
 export function TripNav({ tripId }: { tripId: string }) {
@@ -29,7 +29,7 @@ export function TripNav({ tripId }: { tripId: string }) {
   const base = `/trips/${tripId}`;
 
   return (
-    <nav className="trip-nav" aria-label="Trip workspace">
+    <nav className="trip-nav" aria-label="旅程工作區">
       {items.map(({ href, label, icon: Icon }) => {
         const target = `${base}${href}`;
         const active = href === "" ? pathname === base : pathname.startsWith(target);

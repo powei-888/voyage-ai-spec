@@ -17,7 +17,7 @@ export function BookingForm({
   return (
     <form action={action} className="form-grid">
       <label className="field">
-        <span>Type</span>
+        <span>類型</span>
         <select name="type" defaultValue={booking?.type || "flight"}>
           {BOOKING_TYPES.map((type) => (
             <option value={type} key={type}>{titleCase(type)}</option>
@@ -25,40 +25,40 @@ export function BookingForm({
         </select>
       </label>
       <label className="field">
-        <span>Title</span>
-        <input name="title" defaultValue={booking?.title} placeholder="TPE to NRT" required />
+        <span>標題</span>
+        <input name="title" defaultValue={booking?.title} placeholder="台北前往東京" required />
       </label>
       <label className="field">
-        <span>Provider</span>
-        <input name="provider" defaultValue={booking?.provider || ""} placeholder="Airline or hotel" />
+        <span>供應商</span>
+        <input name="provider" defaultValue={booking?.provider || ""} placeholder="航空公司或飯店" />
       </label>
       <label className="field">
-        <span>Confirmation code</span>
+        <span>確認碼</span>
         <input name="confirmationCode" defaultValue={booking?.confirmationCode || ""} placeholder="ABC123" />
       </label>
       <label className="field">
-        <span>Starts</span>
+        <span>開始時間</span>
         <input name="startTime" type="datetime-local" defaultValue={toDateTimeInput(booking?.startTime || null)} />
       </label>
       <label className="field">
-        <span>Ends</span>
+        <span>結束時間</span>
         <input name="endTime" type="datetime-local" defaultValue={toDateTimeInput(booking?.endTime || null)} />
       </label>
       <label className="field">
-        <span>Location</span>
-        <input name="location" defaultValue={booking?.location || ""} placeholder="Narita Airport" />
+        <span>地點</span>
+        <input name="location" defaultValue={booking?.location || ""} placeholder="成田機場" />
       </label>
       <label className="field">
-        <span>Linked event</span>
+        <span>關聯行程</span>
         <select name="linkedEventId" defaultValue={booking?.linkedEventId || ""}>
-          <option value="">No linked event</option>
+          <option value="">不關聯行程</option>
           {events.map((event) => (
             <option value={event.id} key={event.id}>{event.title}</option>
           ))}
         </select>
       </label>
       <label className="field field-span-2">
-        <span>Attachment URL</span>
+        <span>附件網址</span>
         <input name="attachmentUrl" type="url" defaultValue={booking?.attachmentUrl || ""} placeholder="https://" />
       </label>
       <div className="form-actions field-span-2">

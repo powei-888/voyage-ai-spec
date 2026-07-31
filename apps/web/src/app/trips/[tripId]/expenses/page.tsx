@@ -40,20 +40,20 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
   return (
     <div className="page-stack">
       <PageHeading
-        eyebrow="Money"
-        title="Expenses"
-        description="Recorded costs, equal splits, and settlement balances."
+        eyebrow="費用管理"
+        title="支出"
+        description="管理支出、平均分攤與成員結算。"
         actions={
-          <a className="button button-primary" href="#add-expense"><Plus size={17} /> Add expense</a>
+          <a className="button button-primary" href="#add-expense"><Plus size={17} /> 新增支出</a>
         }
       />
       <Notice error={query.error} notice={query.notice} />
 
       <section className="money-summary">
         <div className="money-total">
-          <span>Total recorded</span>
+          <span>已記錄總額</span>
           <strong>{formatMoney(total, trip.baseCurrency)}</strong>
-          <small>{activeExpenses.length} active expenses</small>
+          <small>{activeExpenses.length} 筆有效支出</small>
         </div>
         <div className="balance-list">
           {balances.members.map((member) => {
@@ -61,7 +61,7 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
             return (
               <div key={member.memberId}>
                 <span className="member-avatar">{member.displayName.slice(0, 2).toUpperCase()}</span>
-                <span><strong>{member.displayName}</strong><small>Paid {formatMoney(member.paidAmount, balances.currency)}</small></span>
+                <span><strong>{member.displayName}</strong><small>已支付 {formatMoney(member.paidAmount, balances.currency)}</small></span>
                 <b className={numeric > 0 ? "positive" : numeric < 0 ? "negative" : ""}>
                   {numeric > 0 ? "+" : ""}{formatMoney(member.balance, balances.currency)}
                 </b>
@@ -72,20 +72,20 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
       </section>
 
       {balances.settlements.length > 0 ? (
-        <section className="settlement-strip" aria-label="Suggested settlements">
-          <strong>Settle up</strong>
+        <section className="settlement-strip" aria-label="建議結算">
+          <strong>建議結算</strong>
           {balances.settlements.map((settlement) => (
             <span key={`${settlement.fromMemberId}-${settlement.toMemberId}`}>
-              {names.get(settlement.fromMemberId)} pays {names.get(settlement.toMemberId)} {formatMoney(settlement.amount, balances.currency)}
+              {names.get(settlement.fromMemberId)} 支付給 {names.get(settlement.toMemberId)} {formatMoney(settlement.amount, balances.currency)}
             </span>
           ))}
         </section>
       ) : null}
 
       <section className="content-section">
-        <div className="section-heading"><div><p className="eyebrow">Ledger</p><h2>Expenses</h2></div></div>
+        <div className="section-heading"><div><p className="eyebrow">支出帳本</p><h2>支出明細</h2></div></div>
         {expenses.length === 0 ? (
-          <EmptyState icon={CreditCard} title="No expenses" body="Add a manual expense or upload a receipt." />
+          <EmptyState icon={CreditCard} title="尚無支出" body="手動新增支出，或上傳收據建立紀錄。" />
         ) : (
           <div className="expense-list">
             {expenses.map((expense) => (
@@ -95,29 +95,29 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                   <div>
                     <span className="category-label">{titleCase(expense.category)}</span>
                     <h3>{expense.title}</h3>
-                    <p>{expense.merchant || "No merchant"} · paid by {expense.payerMember.displayName}</p>
+                    <p>{expense.merchant || "未填商家"} · 付款人：{expense.payerMember.displayName}</p>
                   </div>
                   <div className="expense-amount">
                     <strong>{formatMoney(expense.amount, expense.currency)}</strong>
-                    <span>{expense.expenseDate ? formatDate(expense.expenseDate) : "No date"}</span>
+                    <span>{expense.expenseDate ? formatDate(expense.expenseDate) : "未填日期"}</span>
                   </div>
                   {expense.status === "active" ? (
                     <details className="edit-drawer expense-edit">
-                      <summary><Pencil size={14} /> Edit</summary>
+                      <summary><Pencil size={14} /> 編輯</summary>
                       <ExpenseForm
                         action={updateExpenseAction.bind(null, tripId, expense.id)}
                         trip={trip}
                         members={members}
                         events={events}
                         expense={expense}
-                        submitLabel="Save expense"
+                        submitLabel="儲存支出"
                       />
                     </details>
-                  ) : <span className="status-pill">Voided</span>}
+                  ) : <span className="status-pill">{titleCase(expense.status)}</span>}
                 </div>
                 {expense.status === "active" ? (
                   <form action={voidExpenseAction.bind(null, tripId, expense.id)}>
-                    <button className="icon-button danger" type="submit" title="Void expense"><Trash2 size={16} /></button>
+                    <button className="icon-button danger" type="submit" title="作廢支出"><Trash2 size={16} /></button>
                   </form>
                 ) : null}
               </article>
@@ -128,15 +128,15 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
 
       <section className="form-panel" id="add-expense">
         <div className="section-heading">
-          <div><p className="eyebrow">Quick entry</p><h2>Add expense</h2></div>
-          <a className="text-link" href={`/trips/${tripId}/receipts`}><ReceiptText size={15} /> Upload receipt</a>
+          <div><p className="eyebrow">快速新增</p><h2>新增支出</h2></div>
+          <a className="text-link" href={`/trips/${tripId}/receipts`}><ReceiptText size={15} /> 上傳收據</a>
         </div>
         <ExpenseForm
           action={createExpenseAction.bind(null, tripId)}
           trip={trip}
           members={members}
           events={events}
-          submitLabel="Add expense"
+          submitLabel="新增支出"
         />
       </section>
     </div>

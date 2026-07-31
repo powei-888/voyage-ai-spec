@@ -31,7 +31,7 @@ export async function createEventAction(
       participantMemberIds: formStrings(formData, "participantMemberIds")
     });
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}&notice=Event%20added`);
+    redirect(`${path}&notice=${encodeURIComponent("已新增行程")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -59,7 +59,7 @@ export async function updateEventAction(
       participantMemberIds: formStrings(formData, "participantMemberIds")
     });
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}&notice=Event%20updated`);
+    redirect(`${path}&notice=${encodeURIComponent("已更新行程")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -78,7 +78,7 @@ export async function reorderEventsAction(
       { eventIds }
     );
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}&notice=Timeline%20order%20updated`);
+    redirect(`${path}&notice=${encodeURIComponent("已更新行程順序")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -93,7 +93,7 @@ export async function deleteEventAction(
   try {
     await apiSend(`/trips/${tripId}/events/${eventId}`, "DELETE");
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}&notice=Event%20removed`);
+    redirect(`${path}&notice=${encodeURIComponent("已刪除行程")}`);
   } catch (error) {
     redirectWithError(path, error);
   }

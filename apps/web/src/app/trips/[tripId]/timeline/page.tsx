@@ -51,27 +51,27 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
   return (
     <div className="page-stack">
       <PageHeading
-        eyebrow="Plan"
-        title="Timeline"
-        description="Day-by-day itinerary and shared context."
+        eyebrow="行程規劃"
+        title="每日行程"
+        description="依日期安排活動、地點與同行成員。"
         actions={
           selectedDay ? (
             <a className="button button-primary" href="#add-event">
-              <CalendarPlus size={17} /> Add event
+              <CalendarPlus size={17} /> 新增行程
             </a>
           ) : null
         }
       />
       <Notice error={query.error} notice={query.notice} />
 
-      <nav className="day-tabs" aria-label="Itinerary days">
+      <nav className="day-tabs" aria-label="行程日期">
         {days.map((day) => (
           <Link
             className={selectedDay?.id === day.id ? "active" : ""}
             href={`/trips/${tripId}/timeline?day=${day.id}`}
             key={day.id}
           >
-            <strong>Day {day.dayIndex}</strong>
+            <strong>第 {day.dayIndex} 天</strong>
             <span>{formatDate(day.date, { month: "short", day: "numeric" })}</span>
           </Link>
         ))}
@@ -80,25 +80,25 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
       {!selectedDay ? (
         <EmptyState
           icon={CalendarPlus}
-          title="No itinerary days"
-          body="Check the trip date range in settings."
+          title="尚無行程日期"
+          body="請至設定確認旅程日期範圍。"
         />
       ) : (
         <>
           <section className="content-section">
             <div className="section-heading day-heading">
               <div>
-                <p className="eyebrow">Day {selectedDay.dayIndex}</p>
+                <p className="eyebrow">第 {selectedDay.dayIndex} 天</p>
                 <h2>{selectedDay.title || formatDate(selectedDay.date)}</h2>
               </div>
-              <span>{selectedDay.events.length} events</span>
+              <span>{selectedDay.events.length} 個行程</span>
             </div>
 
             {selectedDay.events.length === 0 ? (
               <EmptyState
                 icon={Clock3}
-                title="This day is open"
-                body="Add an event with a title now; time and location can come later."
+                title="這一天尚未安排"
+                body="先新增行程標題，時間與地點可以稍後補上。"
               />
             ) : (
               <div className="event-list">
@@ -115,22 +115,22 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
                       <div className="inline-meta">
                         {event.locationName ? <span><MapPin size={14} /> {event.locationName}</span> : null}
                         {event._count.bookings + event._count.expenses > 0 ? (
-                          <span><Link2 size={14} /> {event._count.bookings + event._count.expenses} linked</span>
+                          <span><Link2 size={14} /> {event._count.bookings + event._count.expenses} 個關聯</span>
                         ) : null}
                       </div>
                       {event.notes ? <p>{event.notes}</p> : null}
                       <details className="edit-drawer">
-                        <summary><Pencil size={14} /> Edit event</summary>
+                        <summary><Pencil size={14} /> 編輯行程</summary>
                         <form
                           action={updateEventAction.bind(null, tripId, selectedDay.id, event.id)}
                           className="form-grid compact-form"
                         >
                           <label className="field field-span-2">
-                            <span>Title</span>
+                            <span>標題</span>
                             <input name="title" defaultValue={event.title} required />
                           </label>
                           <label className="field">
-                            <span>Category</span>
+                            <span>分類</span>
                             <select name="category" defaultValue={event.category}>
                               {EVENT_CATEGORIES.map((category) => (
                                 <option value={category} key={category}>{titleCase(category)}</option>
@@ -138,39 +138,39 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
                             </select>
                           </label>
                           <label className="field">
-                            <span>Location</span>
+                            <span>地點</span>
                             <input name="locationName" defaultValue={event.locationName || ""} />
                           </label>
                           <label className="field field-span-2">
-                            <span>Address</span>
+                            <span>地址</span>
                             <input name="address" defaultValue={event.address || ""} />
                           </label>
                           <label className="field">
-                            <span>Starts</span>
+                            <span>開始時間</span>
                             <input name="startTime" type="datetime-local" defaultValue={toDateTimeInput(event.startTime)} />
                           </label>
                           <label className="field">
-                            <span>Ends</span>
+                            <span>結束時間</span>
                             <input name="endTime" type="datetime-local" defaultValue={toDateTimeInput(event.endTime)} />
                           </label>
                           <label className="field">
-                            <span>Estimated cost</span>
+                            <span>預估費用</span>
                             <input name="estimatedCostAmount" inputMode="decimal" defaultValue={event.estimatedCostAmount || ""} />
                           </label>
                           <label className="field">
-                            <span>Cost currency</span>
+                            <span>費用幣別</span>
                             <select name="estimatedCostCurrency" defaultValue={event.estimatedCostCurrency || trip.baseCurrency}>
                               <option value={trip.baseCurrency}>{trip.baseCurrency}</option>
-                              <option value="USD">USD</option><option value="JPY">JPY</option>
-                              <option value="TWD">TWD</option><option value="EUR">EUR</option>
+                              <option value="USD">美元 (USD)</option><option value="JPY">日圓 (JPY)</option>
+                              <option value="TWD">新台幣 (TWD)</option><option value="EUR">歐元 (EUR)</option>
                             </select>
                           </label>
                           <label className="field field-span-2">
-                            <span>Notes</span>
+                            <span>備註</span>
                             <textarea name="notes" rows={2} defaultValue={event.notes || ""} />
                           </label>
                           <fieldset className="check-group field-span-2">
-                            <legend>Participants</legend>
+                            <legend>參與成員</legend>
                             {members.map((member) => (
                               <label key={member.id}>
                                 <input
@@ -184,24 +184,24 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
                             ))}
                           </fieldset>
                           <div className="form-actions field-span-2">
-                            <button className="button button-secondary" type="submit">Save changes</button>
+                            <button className="button button-secondary" type="submit">儲存變更</button>
                           </div>
                         </form>
                       </details>
                     </div>
                     <div className="event-row-actions">
                       <form action={reorderEventsAction.bind(null, tripId, selectedDay.id, moveEvent(orderedIds, index, -1))}>
-                        <button className="icon-button" type="submit" title="Move event up" disabled={index === 0}>
+                        <button className="icon-button" type="submit" title="向上移動行程" disabled={index === 0}>
                           <ArrowUp size={16} />
                         </button>
                       </form>
                       <form action={reorderEventsAction.bind(null, tripId, selectedDay.id, moveEvent(orderedIds, index, 1))}>
-                        <button className="icon-button" type="submit" title="Move event down" disabled={index === orderedIds.length - 1}>
+                        <button className="icon-button" type="submit" title="向下移動行程" disabled={index === orderedIds.length - 1}>
                           <ArrowDown size={16} />
                         </button>
                       </form>
                       <form action={deleteEventAction.bind(null, tripId, selectedDay.id, event.id)}>
-                        <button className="icon-button danger" type="submit" title="Delete event">
+                        <button className="icon-button danger" type="submit" title="刪除行程">
                           <Trash2 size={16} />
                         </button>
                       </form>
@@ -214,15 +214,15 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
 
           <section className="form-panel" id="add-event">
             <div className="section-heading">
-              <div><p className="eyebrow">Day {selectedDay.dayIndex}</p><h2>Add event</h2></div>
+              <div><p className="eyebrow">第 {selectedDay.dayIndex} 天</p><h2>新增行程</h2></div>
             </div>
             <form action={createEventAction.bind(null, tripId, selectedDay.id)} className="form-grid">
               <label className="field field-span-2">
-                <span>Title</span>
-                <input name="title" placeholder="Senso-ji morning walk" required />
+                <span>標題</span>
+                <input name="title" placeholder="淺草寺晨間散步" required />
               </label>
               <label className="field">
-                <span>Category</span>
+                <span>分類</span>
                 <select name="category" defaultValue="attraction">
                   {EVENT_CATEGORIES.map((category) => (
                     <option value={category} key={category}>{titleCase(category)}</option>
@@ -230,30 +230,30 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
                 </select>
               </label>
               <label className="field">
-                <span>Location</span>
-                <input name="locationName" placeholder="Asakusa" />
+                <span>地點</span>
+                <input name="locationName" placeholder="淺草" />
               </label>
               <label className="field field-span-2">
-                <span>Address</span>
-                <input name="address" placeholder="2 Chome-3-1 Asakusa, Tokyo" />
+                <span>地址</span>
+                <input name="address" placeholder="東京都台東區淺草 2-3-1" />
               </label>
-              <label className="field"><span>Starts</span><input name="startTime" type="datetime-local" /></label>
-              <label className="field"><span>Ends</span><input name="endTime" type="datetime-local" /></label>
+              <label className="field"><span>開始時間</span><input name="startTime" type="datetime-local" /></label>
+              <label className="field"><span>結束時間</span><input name="endTime" type="datetime-local" /></label>
               <label className="field">
-                <span>Estimated cost</span>
+                <span>預估費用</span>
                 <input name="estimatedCostAmount" inputMode="decimal" placeholder="0" />
               </label>
               <label className="field">
-                <span>Cost currency</span>
+                <span>費用幣別</span>
                 <select name="estimatedCostCurrency" defaultValue={trip.baseCurrency}>
                   <option value={trip.baseCurrency}>{trip.baseCurrency}</option>
-                  <option value="USD">USD</option><option value="JPY">JPY</option>
-                  <option value="TWD">TWD</option><option value="EUR">EUR</option>
+                  <option value="USD">美元 (USD)</option><option value="JPY">日圓 (JPY)</option>
+                  <option value="TWD">新台幣 (TWD)</option><option value="EUR">歐元 (EUR)</option>
                 </select>
               </label>
-              <label className="field field-span-2"><span>Notes</span><textarea name="notes" rows={3} /></label>
+              <label className="field field-span-2"><span>備註</span><textarea name="notes" rows={3} /></label>
               <fieldset className="check-group field-span-2">
-                <legend>Participants</legend>
+                <legend>參與成員</legend>
                 {members.map((member) => (
                   <label key={member.id}>
                     <input type="checkbox" name="participantMemberIds" value={member.id} />
@@ -262,7 +262,7 @@ export default async function TimelinePage({ params, searchParams }: PageProps) 
                 ))}
               </fieldset>
               <div className="form-actions field-span-2">
-                <button className="button button-primary" type="submit"><CalendarPlus size={17} /> Add event</button>
+                <button className="button button-primary" type="submit"><CalendarPlus size={17} /> 新增行程</button>
               </div>
             </form>
           </section>

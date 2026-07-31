@@ -31,22 +31,26 @@ const ids = {
 async function main() {
   await prisma.user.upsert({
     where: { id: ids.user },
-    update: { displayName: "Demo Traveler" },
+    update: { displayName: "示範旅人" },
     create: {
       id: ids.user,
       email: "demo@voyage.local",
-      displayName: "Demo Traveler"
+      displayName: "示範旅人"
     }
   });
 
   await prisma.trip.upsert({
     where: { id: ids.trip },
-    update: {},
+    update: {
+      name: "東京秋日之旅",
+      destinationCountry: "日本",
+      destinationCity: "東京"
+    },
     create: {
       id: ids.trip,
-      name: "Tokyo Autumn Escape",
-      destinationCountry: "Japan",
-      destinationCity: "Tokyo",
+      name: "東京秋日之旅",
+      destinationCountry: "日本",
+      destinationCity: "東京",
       startDate: new Date("2026-09-15T00:00:00.000Z"),
       endDate: new Date("2026-09-19T00:00:00.000Z"),
       baseCurrency: "JPY",
@@ -59,12 +63,12 @@ async function main() {
     {
       id: ids.owner,
       userId: ids.user,
-      displayName: "Demo Traveler",
+      displayName: "示範旅人",
       role: TripRole.owner,
       joinedAt: new Date()
     },
-    { id: ids.amy, displayName: "Amy", role: TripRole.member },
-    { id: ids.tom, displayName: "Tom", role: TripRole.member }
+    { id: ids.amy, displayName: "小美", role: TripRole.member },
+    { id: ids.tom, displayName: "小明", role: TripRole.member }
   ];
   for (const member of members) {
     await prisma.tripMember.upsert({
@@ -75,11 +79,11 @@ async function main() {
   }
 
   const days = [
-    [ids.day1, "2026-09-15", 1, "Arrival"],
-    [ids.day2, "2026-09-16", 2, "Old Tokyo"],
-    [ids.day3, "2026-09-17", 3, "Art and neighborhoods"],
-    [ids.day4, "2026-09-18", 4, "Open day"],
-    [ids.day5, "2026-09-19", 5, "Departure"]
+    [ids.day1, "2026-09-15", 1, "抵達東京"],
+    [ids.day2, "2026-09-16", 2, "東京老城"],
+    [ids.day3, "2026-09-17", 3, "藝術與街區"],
+    [ids.day4, "2026-09-18", 4, "自由活動"],
+    [ids.day5, "2026-09-19", 5, "返程"]
   ];
   for (const [id, date, dayIndex, title] of days) {
     await prisma.itineraryDay.upsert({
@@ -97,18 +101,23 @@ async function main() {
 
   await prisma.itineraryEvent.upsert({
     where: { id: ids.event1 },
-    update: {},
+    update: {
+      title: "淺草寺晨間散步",
+      locationName: "淺草寺",
+      address: "東京淺草",
+      notes: "在雷門前集合。"
+    },
     create: {
       id: ids.event1,
       tripId: ids.trip,
       dayId: ids.day2,
-      title: "Senso-ji morning walk",
+      title: "淺草寺晨間散步",
       category: EventCategory.attraction,
       startTime: new Date("2026-09-16T00:00:00.000Z"),
       endTime: new Date("2026-09-16T02:00:00.000Z"),
-      locationName: "Senso-ji",
-      address: "Asakusa, Tokyo",
-      notes: "Meet by Kaminarimon Gate.",
+      locationName: "淺草寺",
+      address: "東京淺草",
+      notes: "在雷門前集合。",
       sortOrder: 0,
       createdByMemberId: ids.owner,
       participants: {
@@ -119,16 +128,16 @@ async function main() {
 
   await prisma.itineraryEvent.upsert({
     where: { id: ids.event2 },
-    update: {},
+    update: { title: "藏前午餐", locationName: "藏前" },
     create: {
       id: ids.event2,
       tripId: ids.trip,
       dayId: ids.day2,
-      title: "Lunch near Kuramae",
+      title: "藏前午餐",
       category: EventCategory.restaurant,
       startTime: new Date("2026-09-16T03:00:00.000Z"),
       endTime: new Date("2026-09-16T04:00:00.000Z"),
-      locationName: "Kuramae",
+      locationName: "藏前",
       sortOrder: 1,
       createdByMemberId: ids.owner
     }
@@ -136,12 +145,12 @@ async function main() {
 
   await prisma.expense.upsert({
     where: { id: ids.expense },
-    update: {},
+    update: { title: "飯店訂金", merchant: "神田旅宿" },
     create: {
       id: ids.expense,
       tripId: ids.trip,
-      title: "Hotel deposit",
-      merchant: "Kanda Stay",
+      title: "飯店訂金",
+      merchant: "神田旅宿",
       amount: "30000",
       currency: "JPY",
       category: ExpenseCategory.hotel,
@@ -159,30 +168,37 @@ async function main() {
 
   await prisma.booking.upsert({
     where: { id: ids.booking },
-    update: {},
+    update: {
+      title: "神田旅宿",
+      provider: "Voyage 飯店",
+      location: "東京神田"
+    },
     create: {
       id: ids.booking,
       tripId: ids.trip,
       type: BookingType.hotel,
-      title: "Kanda Stay",
-      provider: "Voyage Hotels",
+      title: "神田旅宿",
+      provider: "Voyage 飯店",
       confirmationCode: "TOKYO26",
       startTime: new Date("2026-09-15T06:00:00.000Z"),
       endTime: new Date("2026-09-19T02:00:00.000Z"),
-      location: "Kanda, Tokyo",
+      location: "東京神田",
       createdByMemberId: ids.owner
     }
   });
 
   await prisma.aIProposal.upsert({
     where: { id: ids.proposal },
-    update: {},
+    update: {
+      inputText: "檢查第二天的行程是否太緊湊。",
+      summary: "第二天從淺草到午餐之間保留了足夠的彈性時間。"
+    },
     create: {
       id: ids.proposal,
       tripId: ids.trip,
       type: AIProposalType.itinerary_check,
-      inputText: "Check whether day 2 feels rushed.",
-      summary: "Day 2 has enough breathing room between Asakusa and lunch.",
+      inputText: "檢查第二天的行程是否太緊湊。",
+      summary: "第二天從淺草到午餐之間保留了足夠的彈性時間。",
       proposedJson: {
         kind: "itinerary_check",
         warnings: [],

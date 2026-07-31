@@ -28,46 +28,46 @@ export default async function BookingsPage({ params, searchParams }: PageProps) 
   return (
     <div className="page-stack">
       <PageHeading
-        eyebrow="Reservations"
-        title="Booking hub"
-        description="Codes, schedules, attachments, and itinerary links."
-        actions={<a className="button button-primary" href="#add-booking"><Plus size={17} /> Add booking</a>}
+        eyebrow="預訂管理"
+        title="預訂"
+        description="集中管理確認碼、時間、附件與關聯行程。"
+        actions={<a className="button button-primary" href="#add-booking"><Plus size={17} /> 新增預訂</a>}
       />
       <Notice error={query.error} notice={query.notice} />
 
       <section className="content-section">
-        <div className="section-heading"><div><p className="eyebrow">All records</p><h2>Bookings</h2></div><span>{bookings.length}</span></div>
+        <div className="section-heading"><div><p className="eyebrow">所有紀錄</p><h2>預訂清單</h2></div><span>{bookings.length}</span></div>
         {bookings.length === 0 ? (
-          <EmptyState icon={TicketCheck} title="No bookings" body="Add a flight, hotel, train, or activity." />
+          <EmptyState icon={TicketCheck} title="尚無預訂" body="新增航班、住宿、火車或活動預訂。" />
         ) : (
           <div className="booking-list">
             {bookings.map((booking) => (
               <article className="booking-row" key={booking.id}>
-                <span className={`booking-symbol booking-${booking.type}`}>{booking.type.slice(0, 1).toUpperCase()}</span>
+                <span className={`booking-symbol booking-${booking.type}`}>{titleCase(booking.type).slice(0, 1)}</span>
                 <div className="booking-row-main">
                   <span className="category-label">{titleCase(booking.type)}</span>
                   <h3>{booking.title}</h3>
-                  <p>{booking.provider || "Provider open"} · {formatDateTime(booking.startTime)}</p>
+                  <p>{booking.provider || "未填供應商"} · {formatDateTime(booking.startTime)}</p>
                   <div className="inline-meta">
                     {booking.location ? <span>{booking.location}</span> : null}
                     {booking.linkedEvent ? <span><Link2 size={14} /> {booking.linkedEvent.title}</span> : null}
                   </div>
                   <details className="edit-drawer">
-                    <summary><Pencil size={14} /> Edit booking</summary>
+                    <summary><Pencil size={14} /> 編輯預訂</summary>
                     <BookingForm
                       action={updateBookingAction.bind(null, tripId, booking.id)}
                       events={events}
                       booking={booking}
-                      submitLabel="Save booking"
+                      submitLabel="儲存預訂"
                     />
                   </details>
                 </div>
                 <div className="booking-code">
-                  <span>Confirmation</span>
-                  <code>{booking.confirmationCode || "Not set"}</code>
+                  <span>確認碼</span>
+                  <code>{booking.confirmationCode || "未設定"}</code>
                 </div>
                 <form action={deleteBookingAction.bind(null, tripId, booking.id)}>
-                  <button className="icon-button danger" type="submit" title="Delete booking"><Trash2 size={16} /></button>
+                  <button className="icon-button danger" type="submit" title="刪除預訂"><Trash2 size={16} /></button>
                 </form>
               </article>
             ))}
@@ -76,11 +76,11 @@ export default async function BookingsPage({ params, searchParams }: PageProps) 
       </section>
 
       <section className="form-panel" id="add-booking">
-        <div className="section-heading"><div><p className="eyebrow">Manual entry</p><h2>Add booking</h2></div></div>
+        <div className="section-heading"><div><p className="eyebrow">手動新增</p><h2>新增預訂</h2></div></div>
         <BookingForm
           action={createBookingAction.bind(null, tripId)}
           events={events}
-          submitLabel="Add booking"
+          submitLabel="新增預訂"
         />
       </section>
     </div>

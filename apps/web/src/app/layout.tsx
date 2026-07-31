@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "Voyage AI", template: "%s | Voyage AI" },
-  description: "AI-native travel collaboration workspace"
+  description: "AI 原生旅程協作工作區"
 };
 
 export default function RootLayout({
@@ -12,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="zh-Hant" suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );

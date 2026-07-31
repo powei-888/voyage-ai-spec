@@ -24,15 +24,15 @@ export function ExpenseForm({
   return (
     <form action={action} className="form-grid">
       <label className="field field-span-2">
-        <span>Title</span>
-        <input name="title" defaultValue={expense?.title} placeholder="Dinner" required />
+        <span>標題</span>
+        <input name="title" defaultValue={expense?.title} placeholder="晚餐" required />
       </label>
       <label className="field">
-        <span>Merchant</span>
-        <input name="merchant" defaultValue={expense?.merchant || ""} placeholder="Restaurant" />
+        <span>商家</span>
+        <input name="merchant" defaultValue={expense?.merchant || ""} placeholder="餐廳" />
       </label>
       <label className="field">
-        <span>Category</span>
+        <span>分類</span>
         <select name="category" defaultValue={expense?.category || "food"}>
           {EXPENSE_CATEGORIES.map((category) => (
             <option value={category} key={category}>{titleCase(category)}</option>
@@ -40,7 +40,7 @@ export function ExpenseForm({
         </select>
       </label>
       <label className="field">
-        <span>Amount</span>
+        <span>金額</span>
         <div className="input-affix">
           <span>{trip.baseCurrency}</span>
           <input
@@ -54,7 +54,7 @@ export function ExpenseForm({
         <input type="hidden" name="currency" value={trip.baseCurrency} />
       </label>
       <label className="field">
-        <span>Date</span>
+        <span>日期</span>
         <input
           name="expenseDate"
           type="date"
@@ -62,7 +62,7 @@ export function ExpenseForm({
         />
       </label>
       <label className="field">
-        <span>Paid by</span>
+        <span>付款人</span>
         <select name="payerMemberId" defaultValue={expense?.payerMemberId || members[0]?.id} required>
           {members.map((member) => (
             <option value={member.id} key={member.id}>{member.displayName}</option>
@@ -70,9 +70,9 @@ export function ExpenseForm({
         </select>
       </label>
       <label className="field">
-        <span>Linked event</span>
+        <span>關聯行程</span>
         <select name="linkedEventId" defaultValue={expense?.linkedEventId || ""}>
-          <option value="">No linked event</option>
+          <option value="">不關聯行程</option>
           {events.map((event) => (
             <option value={event.id} key={event.id}>{event.title}</option>
           ))}

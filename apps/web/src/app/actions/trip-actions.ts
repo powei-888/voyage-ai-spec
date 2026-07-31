@@ -42,7 +42,7 @@ export async function updateTripAction(
       ...(budgetAmount === undefined ? { clearBudget: null } : {})
     });
     revalidatePath(`/trips/${tripId}`, "layout");
-    redirect(`${path}?notice=Trip%20settings%20saved`);
+    redirect(`${path}?notice=${encodeURIComponent("已儲存旅程設定")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -52,7 +52,7 @@ export async function archiveTripAction(tripId: string): Promise<void> {
   try {
     await apiSend(`/trips/${tripId}/archive`, "POST");
     revalidatePath("/");
-    redirect("/?notice=Trip%20archived");
+    redirect(`/?notice=${encodeURIComponent("已封存旅程")}`);
   } catch (error) {
     redirectWithError(`/trips/${tripId}/settings`, error);
   }

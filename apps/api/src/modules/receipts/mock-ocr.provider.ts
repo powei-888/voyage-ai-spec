@@ -13,7 +13,7 @@ export class MockOcrProvider implements OcrProvider {
       .trim();
 
     return {
-      merchant: merchant || "Voyage Cafe",
+      merchant: merchant || "Voyage 咖啡館",
       amount: amountMatch?.[1] || "1500",
       currency: input.fallbackCurrency,
       date: input.fallbackDate,
