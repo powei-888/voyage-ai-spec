@@ -78,7 +78,27 @@ Future versions:
 - custom percentage
 - personal item
 
-## Flow 5: Add booking
+## Flow 5: Manage proxy purchases
+
+```text
+Proxy Purchases
+  -> Choose an existing external party or create one inline
+  -> Add one or more products with quantity and unit price
+  -> Save as a pending purchase list or record an immediate purchase
+  -> Select the traveler who advanced payment
+  -> Canonical shopping expense and external receivable created
+  -> Record partial or final collections
+  -> Order and trip balance update together
+```
+
+Important rules:
+
+- A pending list does not affect expenses or balances.
+- Purchased item totals are immutable; corrections happen before purchase or by cancelling an uncollected order.
+- Collections are settlement records linked to one proxy-purchase order.
+- External shares remain outside the traveler trip budget.
+
+## Flow 6: Add booking
 
 ```text
 Trip Dashboard
@@ -100,7 +120,7 @@ Upload PDF or screenshot
   -> Booking linked to timeline
 ```
 
-## Flow 6: AI itinerary suggestion
+## Flow 7: AI itinerary suggestion
 
 ```text
 Timeline
@@ -114,7 +134,7 @@ Timeline
 
 AI should not directly modify timeline events.
 
-## Flow 7: End-of-trip memory
+## Flow 8: End-of-trip memory
 
 Future version:
 
@@ -133,6 +153,7 @@ Recommended MVP navigation:
 - Dashboard
 - Timeline
 - Expenses
+- Proxy Purchases
 - Receipts
 - Bookings
 - AI

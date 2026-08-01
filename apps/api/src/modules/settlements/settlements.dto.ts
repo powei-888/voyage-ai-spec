@@ -28,4 +28,8 @@ export class CreateSettlementDto {
   @IsString()
   @MaxLength(240)
   note?: string;
+
+  @IsOptional()
+  @IsString()
+  proxyPurchaseId?: string;
 }

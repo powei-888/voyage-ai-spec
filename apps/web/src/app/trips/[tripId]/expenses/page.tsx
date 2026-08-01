@@ -2,6 +2,7 @@ import type {
   Expense,
   ExpenseBalances,
   ItineraryDay,
+  ProxyPurchase,
   Settlement,
   Trip,
   TripMember
@@ -41,13 +42,14 @@ type PageProps = {
 
 export default async function ExpensesPage({ params, searchParams }: PageProps) {
   const [{ tripId }, query] = await Promise.all([params, searchParams]);
-  const [trip, members, expenses, balances, days, settlements] = await Promise.all([
+  const [trip, members, expenses, balances, days, settlements, proxyPurchases] = await Promise.all([
     apiGet<Trip>(`/trips/${tripId}`),
     apiGet<TripMember[]>(`/trips/${tripId}/members`),
     apiGet<Expense[]>(`/trips/${tripId}/expenses`),
     apiGet<ExpenseBalances>(`/trips/${tripId}/expenses/balances`),
     apiGet<ItineraryDay[]>(`/trips/${tripId}/itinerary-days`),
-    apiGet<Settlement[]>(`/trips/${tripId}/settlements`)
+    apiGet<Settlement[]>(`/trips/${tripId}/settlements`),
+    apiGet<ProxyPurchase[]>(`/trips/${tripId}/proxy-purchases`)
   ]);
   const events = days.flatMap((day) => day.events);
   const names = new Map(members.map((member) => [member.id, member.displayName]));
@@ -59,6 +61,11 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
     0
   );
   const today = new Date().toISOString().slice(0, 10);
+  const openProxyMembers = new Set(
+    proxyPurchases
+      .filter((purchase) => purchase.status === "purchased")
+      .map((purchase) => purchase.externalMemberId)
+  );
 
   return (
     <div className="page-stack">
@@ -148,9 +155,15 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                   支付給 <strong>{names.get(settlement.toMemberId)}</strong>
                 </span>
                 <b>{formatMoney(settlement.amount, balances.currency)}</b>
-                <PendingButton className="button button-secondary button-compact" type="submit" pendingLabel="記錄中…">
-                  <CheckCircle2 size={15} /> 標記已付款
-                </PendingButton>
+                {openProxyMembers.has(settlement.fromMemberId) ? (
+                  <a className="button button-secondary button-compact" href={`/trips/${tripId}/proxy-purchases`}>
+                    <ShoppingBag size={15} /> 管理代購收款
+                  </a>
+                ) : (
+                  <PendingButton className="button button-secondary button-compact" type="submit" pendingLabel="記錄中…">
+                    <CheckCircle2 size={15} /> 標記已付款
+                  </PendingButton>
+                )}
               </form>
             ))}
           </div>
@@ -212,7 +225,7 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                     <strong>{formatMoney(expense.amount, expense.currency)}</strong>
                     <span>{expense.expenseDate ? formatDate(expense.expenseDate) : "未填日期"}</span>
                   </div>
-                  {expense.status === "active" ? (
+                  {expense.status === "active" && !expense.proxyPurchase ? (
                     <details className="edit-drawer expense-edit">
                       <summary><Pencil size={14} /> 編輯</summary>
                       <ExpenseForm
@@ -224,9 +237,11 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                         submitLabel="儲存支出"
                       />
                     </details>
+                  ) : expense.proxyPurchase ? (
+                    <a className="text-link" href={`/trips/${tripId}/proxy-purchases`}><ShoppingBag size={14} /> 由代購單管理</a>
                   ) : <span className="status-pill">{titleCase(expense.status)}</span>}
                 </div>
-                {expense.status === "active" ? (
+                {expense.status === "active" && !expense.proxyPurchase ? (
                   <ConfirmForm
                     action={voidExpenseAction.bind(null, tripId, expense.id)}
                     message="要作廢這筆支出嗎？它將不再計入餘額。"

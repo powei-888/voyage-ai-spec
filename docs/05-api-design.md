@@ -130,6 +130,32 @@ Balance response example:
 }
 ```
 
+## Proxy purchases
+
+```http
+GET    /api/trips/:tripId/proxy-purchases
+POST   /api/trips/:tripId/proxy-purchases
+PATCH  /api/trips/:tripId/proxy-purchases/:purchaseId
+POST   /api/trips/:tripId/proxy-purchases/:purchaseId/confirm
+DELETE /api/trips/:tripId/proxy-purchases/:purchaseId
+```
+
+Create a pending list or include both `payerMemberId` and `purchasedAt` to record an immediate purchase:
+
+```json
+{
+  "newExternalName": "Amy's mother",
+  "items": [
+    { "description": "Skincare set", "quantity": 2, "unitPrice": "350" },
+    { "description": "Matcha cookies", "quantity": 1, "unitPrice": "420" }
+  ],
+  "payerMemberId": "traveler-member-id",
+  "purchasedAt": "2026-08-01"
+}
+```
+
+Confirming a pending order creates one custom-split shopping expense. Collections use the settlements endpoint with `proxyPurchaseId`; the API rejects generic or excessive collection attempts while that order remains open.
+
 ## Receipts
 
 ```http

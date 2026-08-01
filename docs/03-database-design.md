@@ -235,6 +235,69 @@ Constraint:
 
 - unique expense_id + member_id
 
+### proxy_purchases
+
+Groups one or more requested products under an external expense party.
+
+Fields:
+
+- id: uuid, primary key
+- trip_id: uuid
+- external_member_id: uuid
+- payer_member_id: uuid nullable
+- expense_id: uuid nullable, unique
+- status: enum requested / purchased / cancelled
+- currency: string
+- note: text nullable
+- purchased_at: date nullable
+- created_by_member_id: uuid nullable
+- created_at: timestamp
+- updated_at: timestamp
+
+State rules:
+
+- requested has no payer, expense, or purchase date
+- purchased requires a traveler payer, canonical expense, and purchase date
+- cancelled retains its historical links; a purchased order's expense is voided
+- settled is derived when linked settlements equal the order total, not stored as a second state
+
+### proxy_purchase_items
+
+Represents the individual products in a proxy-purchase order.
+
+Fields:
+
+- id: uuid, primary key
+- proxy_purchase_id: uuid
+- description: string
+- quantity: positive integer
+- unit_price: decimal
+- amount: decimal, calculated from quantity and unit price
+- note: string nullable
+- sort_order: integer
+- created_at: timestamp
+- updated_at: timestamp
+
+### settlements
+
+Represents an actual repayment between two trip accounting parties.
+
+Fields:
+
+- id: uuid, primary key
+- trip_id: uuid
+- from_member_id: uuid
+- to_member_id: uuid
+- amount: decimal
+- currency: string
+- note: string nullable
+- settled_at: date
+- proxy_purchase_id: uuid nullable
+- created_by_member_id: uuid nullable
+- created_at: timestamp
+
+When `proxy_purchase_id` is present, sender, receiver, currency, and remaining amount must match that order. This is the canonical source for partial and complete proxy-purchase collections.
+
 ### bookings
 
 Represents a booking record.
@@ -311,4 +374,5 @@ Negative balance means the member consumed more than they paid.
 - Booking can exist without a timeline event.
 - Timeline event can exist without a booking.
 - A member can exist without a user account.
+- A proxy-purchase order is not a second balance ledger; its expense and settlements are canonical.
 - Do not delete financial records silently. Use status when historical context matters.

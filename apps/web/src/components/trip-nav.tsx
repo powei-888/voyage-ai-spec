@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   ReceiptText,
   Settings,
+  ShoppingBag,
   TicketCheck,
   Users
 } from "lucide-react";
@@ -17,6 +18,7 @@ const items = [
   { href: "", label: "總覽", icon: LayoutDashboard },
   { href: "/timeline", label: "行程表", icon: CalendarDays },
   { href: "/expenses", label: "支出", icon: CreditCard },
+  { href: "/proxy-purchases", label: "代購", icon: ShoppingBag },
   { href: "/receipts", label: "收據", icon: ReceiptText },
   { href: "/bookings", label: "預訂", icon: TicketCheck },
   { href: "/ai", label: "AI", icon: Bot },

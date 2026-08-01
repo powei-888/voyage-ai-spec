@@ -15,7 +15,8 @@ const expenseInclude = {
     orderBy: { memberId: "asc" as const }
   },
   linkedEvent: { select: { id: true, title: true } },
-  linkedReceipt: { select: { id: true, ocrStatus: true } }
+  linkedReceipt: { select: { id: true, ocrStatus: true } },
+  proxyPurchase: { select: { id: true } }
 } as const;
 
 @Injectable()
@@ -79,10 +80,17 @@ export class ExpensesService {
     await this.access.requireMember(tripId, userId);
     const existing = await this.prisma.expense.findFirst({
       where: { id: expenseId, tripId },
-      include: { participants: true }
+      include: { participants: true, proxyPurchase: { select: { id: true } } }
     });
     if (!existing) {
       throw DomainError.notFound("EXPENSE_NOT_FOUND", "Expense not found.");
+    }
+    if (existing.proxyPurchase) {
+      throw new DomainError(
+        "PROXY_PURCHASE_EXPENSE_LOCKED",
+        "Manage this expense from its proxy-purchase order.",
+        HttpStatus.CONFLICT
+      );
     }
 
     const existingShares = existing.participants.map((item) => ({
@@ -138,10 +146,18 @@ export class ExpensesService {
   async void(userId: string, tripId: string, expenseId: string) {
     await this.access.requireMember(tripId, userId);
     const expense = await this.prisma.expense.findFirst({
-      where: { id: expenseId, tripId }
+      where: { id: expenseId, tripId },
+      include: { proxyPurchase: { select: { id: true } } }
     });
     if (!expense) {
       throw DomainError.notFound("EXPENSE_NOT_FOUND", "Expense not found.");
+    }
+    if (expense.proxyPurchase) {
+      throw new DomainError(
+        "PROXY_PURCHASE_EXPENSE_LOCKED",
+        "Cancel this expense from its proxy-purchase order.",
+        HttpStatus.CONFLICT
+      );
     }
     return this.prisma.expense.update({
       where: { id: expenseId },

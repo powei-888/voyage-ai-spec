@@ -141,7 +141,10 @@ export class MembersService {
             createdEvents: true,
             createdBookings: true,
             settlementsSent: true,
-            settlementsReceived: true
+            settlementsReceived: true,
+            proxyPurchasesReceived: true,
+            proxyPurchasesPaid: true,
+            createdProxyPurchases: true
           }
         }
       }

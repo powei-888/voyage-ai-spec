@@ -103,6 +103,7 @@ export type Expense = {
   payerMember: { id: string; displayName: string };
   participants: ExpenseParticipant[];
   linkedEvent: { id: string; title: string } | null;
+  proxyPurchase: { id: string } | null;
 };
 
 export type ExpenseBalances = {
@@ -144,9 +145,47 @@ export type Settlement = {
   note: string | null;
   settledAt: string;
   createdAt: string;
+  proxyPurchaseId: string | null;
   fromMember: { id: string; displayName: string };
   toMember: { id: string; displayName: string };
   createdByMember: { id: string; displayName: string } | null;
+};
+
+export type ProxyPurchaseItem = {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: string;
+  amount: string;
+  note: string | null;
+  sortOrder: number;
+};
+
+export type ProxyPurchase = {
+  id: string;
+  tripId: string;
+  externalMemberId: string;
+  payerMemberId: string | null;
+  expenseId: string | null;
+  status: "requested" | "purchased" | "settled" | "cancelled";
+  currency: string;
+  note: string | null;
+  purchasedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  totalAmount: string;
+  collectedAmount: string;
+  outstandingAmount: string;
+  canCancel: boolean;
+  externalMember: { id: string; displayName: string };
+  payerMember: { id: string; displayName: string } | null;
+  expense: { id: string; status: "active" | "voided" } | null;
+  items: ProxyPurchaseItem[];
+  settlements: Array<{
+    id: string;
+    amount: string;
+    settledAt: string;
+  }>;
 };
 
 export type ReceiptExtraction = {
