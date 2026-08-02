@@ -33,4 +33,37 @@ describe("OllamaClient", () => {
     });
     expect(request.messages[1].images).toEqual(["aW1hZ2U="]);
   });
+
+  it("regenerates once when the model returns malformed JSON", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ message: { content: '{"summary":"缺少結尾"' } }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ message: { content: '{"summary":"已修正","analysis":{}}' } }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      );
+    global.fetch = fetchMock;
+
+    const result = await new OllamaClient().chatJson({
+      system: "system",
+      prompt: "prompt"
+    });
+
+    expect(result.summary).toBe("已修正");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retry = JSON.parse(fetchMock.mock.calls[1]![1]!.body as string);
+    expect(retry.messages).toHaveLength(4);
+    expect(retry.messages[2]).toEqual({
+      role: "assistant",
+      content: '{"summary":"缺少結尾"'
+    });
+    expect(retry.messages[3].content).toContain("不是有效 JSON");
+  });
 });

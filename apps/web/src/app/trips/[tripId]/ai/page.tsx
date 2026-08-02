@@ -1,40 +1,24 @@
 import type { AIProposal } from "@voyage/shared";
-import { Bot, Check, Plus, Sparkles, X } from "lucide-react";
-import { createProposalAction, decideProposalAction } from "../../../actions/proposal-actions";
-import { ConfirmForm } from "../../../../components/confirm-form";
+import { BookmarkCheck, Bot, ChevronDown, History } from "lucide-react";
+import { createProposalAction } from "../../../actions/proposal-actions";
+import { AiProposalCard, ProposalTypeIcon } from "../../../../components/ai-proposal-card";
+import { AiProposalComposer } from "../../../../components/ai-proposal-composer";
 import { EmptyState } from "../../../../components/empty-state";
-import { PendingButton } from "../../../../components/pending-button";
 import { Notice } from "../../../../components/notice";
 import { PageHeading } from "../../../../components/page-heading";
+import { ProposalAnalysis } from "../../../../components/proposal-analysis";
 import { apiGet } from "../../../../lib/api";
-import { formatDateTime, titleCase } from "../../../../lib/format";
-import { PROPOSAL_TYPES } from "../../../../lib/options";
+import { formatDateTime } from "../../../../lib/format";
+import {
+  getProposalMeta,
+  proposalHeadline,
+  proposalStatusLabel
+} from "../../../../lib/proposals";
 
 type PageProps = {
   params: Promise<{ tripId: string }>;
   searchParams: Promise<{ error?: string; notice?: string }>;
 };
-
-function ProposalDetails({ value }: { value: Record<string, unknown> }) {
-  const entries = Object.entries(value).filter(([key]) => key !== "kind");
-  if (entries.length === 0) return null;
-
-  return (
-    <dl className="proposal-details">
-      {entries.map(([key, item]) => (
-        <div key={key}>
-          <dt>{titleCase(key)}</dt>
-          <dd>
-            {Array.isArray(item)
-              ? item.length > 0 ? item.map((value) => titleCase(String(value))).join("、") : "無"
-              : typeof item === "boolean" ? item ? "是" : "否"
-              : String(item ?? "未設定")}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
 
 export default async function AiPage({ params, searchParams }: PageProps) {
   const [{ tripId }, query] = await Promise.all([params, searchParams]);
@@ -43,75 +27,76 @@ export default async function AiPage({ params, searchParams }: PageProps) {
   const history = proposals.filter((proposal) => proposal.status !== "pending");
 
   return (
-    <div className="page-stack">
+    <div className="page-stack ai-page">
       <PageHeading
-        eyebrow="AI 助理"
-        title="AI 提案"
-        description="AI 僅產生分析草稿，必須由使用者確認後才採用。"
-        actions={<a className="button button-primary" href="#new-proposal"><Plus size={17} /> 新增提案</a>}
+        eyebrow="地端 AI"
+        title="旅程分析"
+        description={`${pending.length} 份待審核提案 · ${history.length} 筆決策紀錄`}
       />
       <Notice error={query.error} notice={query.notice} />
 
-      <section className="content-section">
-        <div className="section-heading">
-          <div><p className="eyebrow">審核佇列</p><h2>待審核提案</h2></div>
+      <AiProposalComposer action={createProposalAction.bind(null, tripId)} />
+
+      <section className="ai-review-section" aria-labelledby="pending-proposals-title">
+        <div className="section-heading ai-review-heading">
+          <div>
+            <p className="eyebrow">審核佇列</p>
+            <h2 id="pending-proposals-title">待審核提案</h2>
+          </div>
           <span className="count-badge">{pending.length}</span>
         </div>
         {pending.length === 0 ? (
-          <EmptyState icon={Bot} title="目前沒有待審核提案" body="可從下方建立新的分析草稿。" />
+          <EmptyState icon={Bot} title="目前沒有待審核提案" body="新的分析結果會出現在這裡。" />
         ) : (
-          <div className="proposal-list">
+          <div className="ai-proposal-list">
             {pending.map((proposal) => (
-              <article className="proposal-row" key={proposal.id}>
-                <span className="proposal-icon"><Sparkles size={18} /></span>
-                <div className="proposal-main">
-                  <div className="proposal-heading">
-                    <div><span className="category-label">{titleCase(proposal.type)}</span><h3>{proposal.summary}</h3></div>
-                    <time>{formatDateTime(proposal.createdAt)}</time>
-                  </div>
-                  {proposal.inputText ? <p className="proposal-prompt">{proposal.inputText}</p> : null}
-                  <ProposalDetails value={proposal.proposedJson} />
-                  <div className="proposal-actions">
-                    <ConfirmForm action={decideProposalAction.bind(null, tripId, proposal.id, "accept")} message="要接受這份分析提案嗎？">
-                      <PendingButton className="button button-primary" type="submit" pendingLabel="接受中…"><Check size={16} /> 接受</PendingButton>
-                    </ConfirmForm>
-                    <ConfirmForm action={decideProposalAction.bind(null, tripId, proposal.id, "reject")} message="要拒絕這份提案嗎？">
-                      <PendingButton className="button button-secondary" type="submit" pendingLabel="處理中…"><X size={16} /> 拒絕</PendingButton>
-                    </ConfirmForm>
-                  </div>
-                </div>
-              </article>
+              <AiProposalCard proposal={proposal} tripId={tripId} key={proposal.id} />
             ))}
           </div>
         )}
       </section>
 
-      <section className="form-panel" id="new-proposal">
-        <div className="section-heading"><div><p className="eyebrow">地端 Qwen</p><h2>建立提案</h2></div></div>
-        <form action={createProposalAction.bind(null, tripId)} className="form-grid">
-          <label className="field">
-            <span>分析類型</span>
-            <select name="type" defaultValue="itinerary_check">
-              {PROPOSAL_TYPES.map((type) => <option value={type} key={type}>{titleCase(type)}</option>)}
-            </select>
-          </label>
-          <label className="field field-span-2"><span>補充情境或需求</span><textarea name="inputText" rows={4} maxLength={2000} placeholder="檢查目前的行程是否安排得太緊湊。" /></label>
-          <div className="form-actions field-span-2"><PendingButton className="button button-primary" type="submit" pendingLabel="分析中…"><Sparkles size={16} /> 產生分析草稿</PendingButton></div>
-        </form>
-      </section>
-
-      <section className="content-section">
-        <div className="section-heading"><div><p className="eyebrow">決策紀錄</p><h2>提案歷史</h2></div></div>
+      <section className="content-section ai-history-section" aria-labelledby="proposal-history-title">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">決策紀錄</p>
+            <h2 id="proposal-history-title">提案歷史</h2>
+          </div>
+          <History size={18} />
+        </div>
         {history.length === 0 ? (
-          <EmptyState icon={Bot} title="尚無決策紀錄" body="已接受或拒絕的提案會顯示在這裡。" />
+          <EmptyState icon={BookmarkCheck} title="尚無決策紀錄" body="保留或略過的提案會顯示在這裡。" />
         ) : (
-          <div className="simple-list">
+          <div className="ai-history-list">
             {history.map((proposal) => (
-              <article key={proposal.id}>
-                <span className={`state-dot state-${proposal.status}`} />
-                <div><strong>{proposal.summary}</strong><small>{titleCase(proposal.type)} · {formatDateTime(proposal.createdAt)}</small></div>
-                <span className={`status-pill status-${proposal.status}`}>{titleCase(proposal.status)}</span>
-              </article>
+              <details className="ai-history-item" key={proposal.id}>
+                <summary>
+                  <span className="ai-history-icon"><ProposalTypeIcon type={proposal.type} /></span>
+                  <span className="ai-history-copy">
+                    <strong>{proposalHeadline(proposal.summary, proposal.type)}</strong>
+                    <small>{getProposalMeta(proposal.type).label} · {formatDateTime(proposal.createdAt)}</small>
+                  </span>
+                  <span className={`status-pill status-${proposal.status}`}>
+                    {proposalStatusLabel(proposal.status)}
+                  </span>
+                  <ChevronDown className="ai-history-chevron" size={17} />
+                </summary>
+                <div className="ai-history-body">
+                  <p>{proposal.summary}</p>
+                  {proposal.inputText ? (
+                    <blockquote className="ai-user-request">
+                      <span>你的需求</span>
+                      <p>{proposal.inputText}</p>
+                    </blockquote>
+                  ) : null}
+                  <ProposalAnalysis value={proposal.proposedJson} />
+                  {proposal.status === "accepted" && proposal.appliedByMember ? (
+                    <small className="ai-decision-meta">
+                      {proposal.appliedByMember.displayName} 於 {formatDateTime(proposal.appliedAt)} 保留此建議
+                    </small>
+                  ) : null}
+                </div>
+              </details>
             ))}
           </div>
         )}

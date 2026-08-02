@@ -16,7 +16,7 @@ export async function createProposalAction(
       inputText: optionalString(formData, "inputText")
     });
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=${encodeURIComponent("已建立提案，等待審核")}`);
+    redirect(`${path}?notice=${encodeURIComponent("分析完成，已加入待審核提案")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -34,7 +34,9 @@ export async function decideProposalAction(
       "POST"
     );
     revalidatePath(`/trips/${tripId}`);
-    const notice = decision === "accept" ? "已接受提案" : "已拒絕提案";
+    const notice = decision === "accept"
+      ? "已保留建議，旅程資料沒有被修改"
+      : "已略過建議，可在提案歷史中查看";
     redirect(`${path}?notice=${encodeURIComponent(notice)}`);
   } catch (error) {
     redirectWithError(path, error);

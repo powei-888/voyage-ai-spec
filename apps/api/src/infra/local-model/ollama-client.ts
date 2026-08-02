@@ -33,6 +33,42 @@ export class OllamaClient {
   private readonly timeoutMs = envInteger("LOCAL_LLM_TIMEOUT_MS", 180_000);
 
   async chatJson(input: ChatJsonInput): Promise<Record<string, unknown>> {
+    const firstContent = await this.request(input);
+    try {
+      return parseJsonObject(firstContent);
+    } catch {
+      const retryContent = await this.request(input, firstContent);
+      try {
+        return parseJsonObject(retryContent);
+      } catch (error) {
+        throw new Error(
+          `Local model returned invalid JSON after one retry: ${
+            error instanceof Error ? error.message : "Unknown parse error"
+          }`
+        );
+      }
+    }
+  }
+
+  private async request(input: ChatJsonInput, invalidContent?: string): Promise<string> {
+    const messages = [
+      { role: "system", content: input.system },
+      {
+        role: "user",
+        content: input.prompt,
+        ...(input.images?.length ? { images: input.images } : {})
+      },
+      ...(invalidContent
+        ? [
+            { role: "assistant", content: invalidContent },
+            {
+              role: "user",
+              content:
+                "上一個回應不是有效 JSON。請重新輸出完整且可解析的 JSON 物件，不要加入 Markdown 或說明文字。"
+            }
+          ]
+        : [])
+    ];
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -43,14 +79,7 @@ export class OllamaClient {
         think: false,
         format: "json",
         keep_alive: process.env.LOCAL_LLM_KEEP_ALIVE ?? "0",
-        messages: [
-          { role: "system", content: input.system },
-          {
-            role: "user",
-            content: input.prompt,
-            ...(input.images?.length ? { images: input.images } : {})
-          }
-        ],
+        messages,
         options: {
           temperature: 0.1,
           num_ctx: envInteger("LOCAL_LLM_NUM_CTX", 8192),
@@ -67,6 +96,6 @@ export class OllamaClient {
     if (!payload.message?.content) {
       throw new Error("Ollama returned an empty response.");
     }
-    return parseJsonObject(payload.message.content);
+    return payload.message.content;
   }
 }

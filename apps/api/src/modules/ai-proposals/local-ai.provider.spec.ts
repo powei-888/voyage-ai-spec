@@ -32,12 +32,17 @@ const context: ProposalContext = {
 
 describe("LocalAiProvider", () => {
   it("stores Qwen analysis as a reviewable proposal without operations", async () => {
+    const chatJson = jest.fn().mockResolvedValue({
+      summary: "目前行程沒有明顯衝突。",
+      analysis: {
+        warnings: [],
+        suggestions: ["保留移動時間"],
+        unexpectedDetail: { day2: "上午行程較密集" }
+      }
+    });
     const ollama = {
       model: "qwen3.5:9b",
-      chatJson: jest.fn().mockResolvedValue({
-        summary: "目前行程沒有明顯衝突。",
-        analysis: { warnings: [], suggestions: ["保留移動時間"] }
-      })
+      chatJson
     } as unknown as OllamaClient;
     const provider = new LocalAiProvider(ollama, new LocalInferenceCoordinator());
 
@@ -51,8 +56,13 @@ describe("LocalAiProvider", () => {
       kind: "itinerary_check",
       source: "local_ollama",
       model: "qwen3.5:9b",
+      suggestions: ["保留移動時間"],
+      details: { unexpectedDetail: { day2: "上午行程較密集" } },
       operations: []
     });
-    expect(ollama.chatJson).toHaveBeenCalledTimes(1);
+    expect(chatJson).toHaveBeenCalledTimes(1);
+    expect(chatJson.mock.calls[0]![0].system).toContain(
+      '"observations":[],"warnings":[],"suggestions":[],"missingFields":[],"metrics":{}'
+    );
   });
 });
