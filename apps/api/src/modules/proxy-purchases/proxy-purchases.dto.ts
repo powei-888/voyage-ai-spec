@@ -1,8 +1,10 @@
 import { Transform, Type } from "class-transformer";
+import { ExpensePaymentSource } from "@prisma/client";
 import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -66,6 +68,14 @@ export class CreateProxyPurchaseDto {
   payerMemberId?: string;
 
   @IsOptional()
+  @IsEnum(ExpensePaymentSource)
+  paymentSource?: ExpensePaymentSource;
+
+  @IsOptional()
+  @IsString()
+  fundId?: string;
+
+  @IsOptional()
   @Matches(DATE_ONLY)
   purchasedAt?: string;
 }
@@ -89,9 +99,17 @@ export class UpdateProxyPurchaseDto {
 }
 
 export class ConfirmProxyPurchaseDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  payerMemberId!: string;
+  payerMemberId?: string;
+
+  @IsOptional()
+  @IsEnum(ExpensePaymentSource)
+  paymentSource?: ExpensePaymentSource;
+
+  @IsOptional()
+  @IsString()
+  fundId?: string;
 
   @Matches(DATE_ONLY)
   purchasedAt!: string;

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ExpensesModule } from "../expenses/expenses.module";
+import { FundsModule } from "../funds/funds.module";
 import { ProxyPurchasesModule } from "../proxy-purchases/proxy-purchases.module";
 import { LocalOcrProvider } from "./local-ocr.provider";
 import { LocalReceiptStorageService } from "./local-receipt-storage.service";
@@ -13,7 +14,7 @@ import { ReceiptsController } from "./receipts.controller";
 import { ReceiptsService } from "./receipts.service";
 
 @Module({
-  imports: [ExpensesModule, ProxyPurchasesModule],
+  imports: [ExpensesModule, FundsModule, ProxyPurchasesModule],
   controllers: [ReceiptsController],
   providers: [
     ReceiptsService,

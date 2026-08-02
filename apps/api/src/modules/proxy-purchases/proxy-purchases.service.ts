@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   ExpenseCategory,
+  ExpensePaymentSource,
   ExpenseSplitMethod,
   ExpenseStatus,
   Prisma,
@@ -14,6 +15,7 @@ import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
 import { fromMinorUnits, toMinorUnits } from "../expenses/money";
+import { FundsService } from "../funds/funds.service";
 import { normalizeProxyPurchaseItems } from "./proxy-purchase-money";
 import { normalizeStoredReceiptItems } from "../receipts/receipt-line-items";
 import type { CreateReceiptProxyPurchaseDto } from "../receipts/receipts.dto";
@@ -26,11 +28,17 @@ import {
 export const proxyPurchaseInclude = {
   externalMember: { select: { id: true, displayName: true } },
   payerMember: { select: { id: true, displayName: true } },
+  fund: { select: { id: true, name: true, currency: true } },
   expense: { select: { id: true, status: true } },
   items: { orderBy: { sortOrder: "asc" as const } },
   settlements: {
     select: { id: true, amount: true, settledAt: true },
     orderBy: [{ settledAt: "desc" as const }, { createdAt: "desc" as const }]
+  },
+  fundTransactions: {
+    where: { voidedAt: null, type: "collection" as const },
+    select: { id: true, amount: true, transactionDate: true, fundId: true },
+    orderBy: [{ transactionDate: "desc" as const }, { createdAt: "desc" as const }]
   }
 } satisfies Prisma.ProxyPurchaseInclude;
 
@@ -42,7 +50,8 @@ type ProxyPurchaseRecord = Prisma.ProxyPurchaseGetPayload<{
 export class ProxyPurchasesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly access: TripAccessService
+    private readonly access: TripAccessService,
+    private readonly funds: FundsService
   ) {}
 
   async list(userId: string, tripId: string) {
@@ -62,16 +71,14 @@ export class ProxyPurchasesService {
       dto.items,
       trip.baseCurrency
     );
-    const purchaseNow = Boolean(dto.payerMemberId || dto.purchasedAt);
-    if (purchaseNow && (!dto.payerMemberId || !dto.purchasedAt)) {
+    const purchaseNow = Boolean(dto.payerMemberId || dto.fundId || dto.purchasedAt);
+    if (purchaseNow && !dto.purchasedAt) {
       throw new DomainError(
         "PROXY_PURCHASE_PAYMENT_FIELDS_REQUIRED",
-        "Payer and purchase date are both required when recording a purchase."
+        "Payment source and purchase date are required when recording a purchase."
       );
     }
-    if (dto.payerMemberId) {
-      await this.access.assertTravelersBelongToTrip(tripId, [dto.payerMemberId]);
-    }
+    const payment = purchaseNow ? await this.validatePaymentSource(tripId, dto) : null;
     const existingExternal = dto.externalMemberId
       ? await this.requireExternalMember(tripId, dto.externalMemberId)
       : null;
@@ -99,7 +106,7 @@ export class ProxyPurchasesService {
             tripId,
             actor.id,
             external,
-            dto.payerMemberId!,
+            payment!,
             dto.purchasedAt!,
             trip.baseCurrency,
             totalAmount,
@@ -110,7 +117,9 @@ export class ProxyPurchasesService {
         data: {
           tripId,
           externalMemberId: external.id,
-          payerMemberId: dto.payerMemberId || null,
+          paymentSource: payment?.paymentSource ?? ExpensePaymentSource.member,
+          payerMemberId: payment?.payerMemberId ?? null,
+          fundId: payment?.fundId ?? null,
           expenseId: expense?.id ?? null,
           status: purchaseNow
             ? ProxyPurchaseStatus.purchased
@@ -344,7 +353,7 @@ export class ProxyPurchasesService {
     dto: ConfirmProxyPurchaseDto
   ) {
     const actor = await this.access.requireMember(tripId, userId);
-    await this.access.assertTravelersBelongToTrip(tripId, [dto.payerMemberId]);
+    const payment = await this.validatePaymentSource(tripId, dto);
     const existing = await this.requirePurchase(tripId, purchaseId);
     if (existing.sourceReceiptId) {
       throw new DomainError(
@@ -368,7 +377,7 @@ export class ProxyPurchasesService {
         tripId,
         actor.id,
         existing.externalMember,
-        dto.payerMemberId,
+        payment,
         dto.purchasedAt,
         existing.currency,
         totalAmount,
@@ -377,7 +386,9 @@ export class ProxyPurchasesService {
       const claimed = await tx.proxyPurchase.updateMany({
         where: { id: purchaseId, status: ProxyPurchaseStatus.requested },
         data: {
-          payerMemberId: dto.payerMemberId,
+          paymentSource: payment.paymentSource,
+          payerMemberId: payment.payerMemberId,
+          fundId: payment.fundId,
           expenseId: expense.id,
           purchasedAt: parseDateOnly(dto.purchasedAt),
           status: ProxyPurchaseStatus.purchased
@@ -414,7 +425,7 @@ export class ProxyPurchasesService {
         HttpStatus.CONFLICT
       );
     }
-    if (existing.settlements.length > 0) {
+    if (existing.settlements.length > 0 || existing.fundTransactions.length > 0) {
       throw new DomainError(
         "PROXY_PURCHASE_HAS_COLLECTIONS",
         "Delete recorded collections before cancelling this proxy purchase.",
@@ -486,12 +497,19 @@ export class ProxyPurchasesService {
     tripId: string,
     actorMemberId: string,
     external: { id: string; displayName: string },
-    payerMemberId: string,
+    payment: {
+      paymentSource: ExpensePaymentSource;
+      payerMemberId: string | null;
+      fundId: string | null;
+    },
     purchasedAt: string,
     currency: string,
     totalAmount: string,
     itemCount: number
   ) {
+    if (payment.paymentSource === ExpensePaymentSource.fund) {
+      await this.funds.assertAvailable(tx, tripId, payment.fundId!, totalAmount);
+    }
     return tx.expense.create({
       data: {
         tripId,
@@ -500,7 +518,9 @@ export class ProxyPurchasesService {
         currency,
         category: ExpenseCategory.shopping,
         expenseDate: parseDateOnly(purchasedAt),
-        payerMemberId,
+        paymentSource: payment.paymentSource,
+        payerMemberId: payment.payerMemberId,
+        fundId: payment.fundId,
         splitMethod: ExpenseSplitMethod.custom,
         createdByMemberId: actorMemberId,
         participants: {
@@ -523,7 +543,8 @@ export class ProxyPurchasesService {
 
   private serialize(purchase: ProxyPurchaseRecord) {
     const totalMinor = toMinorUnits(this.totalAmount(purchase), purchase.currency);
-    const collectedMinor = purchase.settlements.reduce(
+    const fundTransactions = purchase.fundTransactions ?? [];
+    const collectedMinor = [...purchase.settlements, ...fundTransactions].reduce(
       (sum, settlement) =>
         sum + toMinorUnits(settlement.amount.toString(), purchase.currency),
       0n
@@ -549,13 +570,58 @@ export class ProxyPurchasesService {
         ...settlement,
         amount: settlement.amount.toString()
       })),
+      collections: [
+        ...purchase.settlements.map((settlement) => ({
+          id: settlement.id,
+          amount: settlement.amount.toString(),
+          settledAt: settlement.settledAt,
+          source: "member" as const,
+          fundId: null
+        })),
+        ...fundTransactions.map((transaction) => ({
+          id: transaction.id,
+          amount: transaction.amount.toString(),
+          settledAt: transaction.transactionDate,
+          source: "fund" as const,
+          fundId: transaction.fundId
+        }))
+      ].sort((a, b) => new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime()),
       totalAmount: fromMinorUnits(totalMinor, purchase.currency),
       collectedAmount: fromMinorUnits(collectedMinor, purchase.currency),
       outstandingAmount: fromMinorUnits(outstandingMinor, purchase.currency),
       canCancel:
         purchase.status !== ProxyPurchaseStatus.cancelled &&
         purchase.settlements.length === 0 &&
+        fundTransactions.length === 0 &&
         !(purchase.sourceReceiptId && purchase.status === ProxyPurchaseStatus.purchased)
     };
+  }
+
+  private async validatePaymentSource(
+    tripId: string,
+    dto: {
+      paymentSource?: ExpensePaymentSource;
+      payerMemberId?: string;
+      fundId?: string;
+    }
+  ) {
+    const paymentSource = dto.paymentSource ?? ExpensePaymentSource.member;
+    const payerMemberId = dto.payerMemberId || null;
+    const fundId = dto.fundId || null;
+    if (paymentSource === ExpensePaymentSource.member) {
+      if (!payerMemberId || fundId) {
+        throw new DomainError(
+          "INVALID_EXPENSE_PAYMENT_SOURCE",
+          "A member-paid proxy purchase requires one traveler payer."
+        );
+      }
+      await this.access.assertTravelersBelongToTrip(tripId, [payerMemberId]);
+    } else if (payerMemberId || !fundId) {
+      throw new DomainError(
+        "INVALID_EXPENSE_PAYMENT_SOURCE",
+        "A public-fund proxy purchase requires one fund and no traveler payer."
+      );
+    }
+    return { paymentSource, payerMemberId, fundId };
   }
 }

@@ -8,6 +8,7 @@ export type ProposalContext = {
   pendingReceiptCount: number;
   budgetAmount: string | null;
   expenseTotal: string;
+  publicFundBalance?: string | null;
   baseCurrency: string;
   categoryTotals: Array<{ category: string; amount: string }>;
   days: Array<{

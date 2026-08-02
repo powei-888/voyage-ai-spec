@@ -14,6 +14,7 @@ import {
 } from "class-validator";
 import {
   ExpenseCategory,
+  ExpensePaymentSource,
   ExpenseSplitMethod,
   ExpenseStatus
 } from "@prisma/client";
@@ -58,9 +59,17 @@ export class CreateExpenseDto {
   @Matches(DATE_ONLY)
   expenseDate?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  payerMemberId!: string;
+  payerMemberId?: string;
+
+  @IsOptional()
+  @IsEnum(ExpensePaymentSource)
+  paymentSource?: ExpensePaymentSource;
+
+  @IsOptional()
+  @IsString()
+  fundId?: string;
 
   @IsOptional()
   @IsEnum(ExpenseSplitMethod)
@@ -115,7 +124,16 @@ export class UpdateExpenseDto {
 
   @IsOptional()
   @IsString()
-  payerMemberId?: string;
+  payerMemberId?: string | null;
+
+  @IsOptional()
+  @IsEnum(ExpensePaymentSource)
+  paymentSource?: ExpensePaymentSource;
+
+  @IsOptional()
+  @ValidateIf((_object, value) => value !== null)
+  @IsString()
+  fundId?: string | null;
 
   @IsOptional()
   @IsEnum(ExpenseSplitMethod)

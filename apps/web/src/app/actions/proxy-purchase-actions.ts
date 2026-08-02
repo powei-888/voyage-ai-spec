@@ -26,7 +26,15 @@ export async function createProxyPurchaseAction(
       note: optionalString(formData, "note"),
       payerMemberId:
         purchaseState === "purchased"
-          ? formString(formData, "payerMemberId")
+          ? optionalString(formData, "payerMemberId")
+          : undefined,
+      paymentSource:
+        purchaseState === "purchased"
+          ? formString(formData, "paymentSource") || "member"
+          : undefined,
+      fundId:
+        purchaseState === "purchased"
+          ? optionalString(formData, "fundId")
           : undefined,
       purchasedAt:
         purchaseState === "purchased"
@@ -36,7 +44,7 @@ export async function createProxyPurchaseAction(
     revalidateTrip(tripId);
     redirect(
       `${path}?notice=${encodeURIComponent(
-        purchaseState === "purchased" ? "已建立代購單並記錄墊付款" : "已建立代購清單"
+        purchaseState === "purchased" ? "已建立代購單並記錄付款" : "已建立代購清單"
       )}`
     );
   } catch (error) {
@@ -74,12 +82,14 @@ export async function confirmProxyPurchaseAction(
       `/trips/${tripId}/proxy-purchases/${purchaseId}/confirm`,
       "POST",
       {
-        payerMemberId: formString(formData, "payerMemberId"),
+        paymentSource: formString(formData, "paymentSource") || "member",
+        payerMemberId: optionalString(formData, "payerMemberId"),
+        fundId: optionalString(formData, "fundId"),
         purchasedAt: formString(formData, "purchasedAt")
       }
     );
     revalidateTrip(tripId);
-    redirect(`${path}?notice=${encodeURIComponent("已記錄代購墊付款")}`);
+    redirect(`${path}?notice=${encodeURIComponent("已記錄代購付款")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -92,15 +102,27 @@ export async function collectProxyPurchaseAction(
 ): Promise<void> {
   const path = `/trips/${tripId}/proxy-purchases`;
   try {
-    await apiSend(`/trips/${tripId}/settlements`, "POST", {
-      fromMemberId: formString(formData, "fromMemberId"),
-      toMemberId: formString(formData, "toMemberId"),
-      amount: formString(formData, "amount"),
-      currency: formString(formData, "currency"),
-      settledAt: formString(formData, "settledAt"),
-      note: optionalString(formData, "note"),
-      proxyPurchaseId: purchaseId
-    });
+    if (formString(formData, "paymentSource") === "fund") {
+      const fundId = formString(formData, "fundId");
+      await apiSend(`/trips/${tripId}/funds/${fundId}/transactions`, "POST", {
+        type: "collection",
+        memberId: formString(formData, "fromMemberId"),
+        amount: formString(formData, "amount"),
+        transactionDate: formString(formData, "settledAt"),
+        note: optionalString(formData, "note"),
+        proxyPurchaseId: purchaseId
+      });
+    } else {
+      await apiSend(`/trips/${tripId}/settlements`, "POST", {
+        fromMemberId: formString(formData, "fromMemberId"),
+        toMemberId: formString(formData, "toMemberId"),
+        amount: formString(formData, "amount"),
+        currency: formString(formData, "currency"),
+        settledAt: formString(formData, "settledAt"),
+        note: optionalString(formData, "note"),
+        proxyPurchaseId: purchaseId
+      });
+    }
     revalidateTrip(tripId);
     redirect(`${path}?notice=${encodeURIComponent("已記錄代購收款")}`);
   } catch (error) {
@@ -110,11 +132,22 @@ export async function collectProxyPurchaseAction(
 
 export async function deleteProxyCollectionAction(
   tripId: string,
-  settlementId: string
+  collectionId: string,
+  source: "member" | "fund",
+  fundId: string | null,
+  formData: FormData
 ): Promise<void> {
   const path = `/trips/${tripId}/proxy-purchases`;
   try {
-    await apiSend(`/trips/${tripId}/settlements/${settlementId}`, "DELETE");
+    if (source === "fund" && fundId) {
+      await apiSend(
+        `/trips/${tripId}/funds/${fundId}/transactions/${collectionId}`,
+        "DELETE",
+        { reason: formString(formData, "reason") || "使用者刪除代購收款" }
+      );
+    } else {
+      await apiSend(`/trips/${tripId}/settlements/${collectionId}`, "DELETE");
+    }
     revalidateTrip(tripId);
     redirect(`${path}?notice=${encodeURIComponent("已刪除代購收款紀錄")}`);
   } catch (error) {
@@ -153,5 +186,6 @@ function revalidateTrip(tripId: string) {
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/proxy-purchases`);
   revalidatePath(`/trips/${tripId}/expenses`);
+  revalidatePath(`/trips/${tripId}/funds`);
   revalidatePath(`/trips/${tripId}/members`);
 }

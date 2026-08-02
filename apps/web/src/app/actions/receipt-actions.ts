@@ -60,7 +60,9 @@ export async function reviewReceiptAction(
       currency: formString(formData, "currency"),
       category: formString(formData, "category"),
       expenseDate: optionalString(formData, "expenseDate"),
-      payerMemberId: formString(formData, "payerMemberId"),
+      paymentSource: formString(formData, "paymentSource") || "member",
+      payerMemberId: optionalString(formData, "payerMemberId"),
+      fundId: optionalString(formData, "fundId"),
       splitMethod: formString(formData, "splitMethod") || "equal",
       participantMemberIds,
       splitShares: participantMemberIds

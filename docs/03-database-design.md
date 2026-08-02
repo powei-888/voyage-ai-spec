@@ -416,6 +416,24 @@ Algorithm:
 Positive balance means the member paid more than their share.
 Negative balance means the member consumed more than they paid.
 
+## Public funds
+
+`TripFund` is a real cash account in the trip base currency, not a synthetic member.
+`FundTransaction` stores contributions, refunds, cash adjustments, and external
+collections. Transactions are never silently deleted; voiding records the actor,
+timestamp, and reason. Active fund-paid expenses are the canonical cash outflow and are
+not duplicated as a fund transaction.
+
+Each expense has one exclusive payment source:
+
+- `paymentSource=member`: `payerMemberId` is required and `fundId` is null.
+- `paymentSource=fund`: `fundId` is required and `payerMemberId` is null.
+
+PostgreSQL check constraints enforce this invariant. Contributions and collections count
+as member payments for fair-share balances; refunds subtract that payment credit. Public
+fund cash is contributions plus credits and collections, minus refunds, debits, and active
+fund-paid expenses.
+
 ## Important modeling rules
 
 - Receipt is not the same as Expense.
@@ -427,4 +445,6 @@ Negative balance means the member consumed more than they paid.
 - Several receipt-linked proxy-purchase orders can share the receipt's single canonical expense.
 - A receipt-linked order is purchased only inside receipt confirmation; it cannot create a second expense.
 - OCR originals are never replaced by translated or manually corrected text.
+- A public fund is not a trip member and cannot be used as a fake settlement party.
+- A fund-paid proxy-purchase collection returns to the same fund.
 - Do not delete financial records silently. Use status when historical context matters.

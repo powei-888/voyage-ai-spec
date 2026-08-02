@@ -7,6 +7,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { AiProposalsModule } from "./modules/ai-proposals/ai-proposals.module";
 import { BookingsModule } from "./modules/bookings/bookings.module";
 import { ExpensesModule } from "./modules/expenses/expenses.module";
+import { FundsModule } from "./modules/funds/funds.module";
 import { ItineraryModule } from "./modules/itinerary/itinerary.module";
 import { MembersModule } from "./modules/members/members.module";
 import { ProxyPurchasesModule } from "./modules/proxy-purchases/proxy-purchases.module";
@@ -25,6 +26,7 @@ import { TripsModule } from "./modules/trips/trips.module";
     AuthModule,
     TripsModule,
     MembersModule,
+    FundsModule,
     ProxyPurchasesModule,
     ItineraryModule,
     ExpensesModule,

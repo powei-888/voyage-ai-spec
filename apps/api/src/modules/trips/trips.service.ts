@@ -10,6 +10,7 @@ import { enumerateDates, parseDateOnly } from "../../common/date-utils";
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
+import { calculateFundCash } from "../funds/fund-calculator";
 import { CreateTripDto, UpdateTripDto } from "./trips.dto";
 
 const tripInclude = {
@@ -115,6 +116,20 @@ export class TripsService {
     const datesChanged =
       startDate.getTime() !== trip.startDate.getTime() ||
       endDate.getTime() !== trip.endDate.getTime();
+    if (dto.baseCurrency && dto.baseCurrency !== trip.baseCurrency) {
+      const [expenseCount, settlementCount, fundCount] = await Promise.all([
+        this.prisma.expense.count({ where: { tripId } }),
+        this.prisma.settlement.count({ where: { tripId } }),
+        this.prisma.tripFund.count({ where: { tripId } })
+      ]);
+      if (expenseCount + settlementCount + fundCount > 0) {
+        throw new DomainError(
+          "TRIP_CURRENCY_LOCKED",
+          "The base currency cannot change after financial records exist.",
+          HttpStatus.CONFLICT
+        );
+      }
+    }
 
     if (datesChanged) {
       const eventCount = await this.prisma.itineraryEvent.count({ where: { tripId } });
@@ -185,7 +200,7 @@ export class TripsService {
     const tomorrow = new Date(today);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-    const [todayEvents, upcomingEvent, travelerExpenseTotal, pendingReceipts, pendingProposals, upcomingBookings] =
+    const [todayEvents, upcomingEvent, travelerExpenseTotal, pendingReceipts, pendingProposals, upcomingBookings, publicFund] =
       await Promise.all([
         this.prisma.itineraryEvent.findMany({
           where: { tripId, day: { date: { gte: today, lt: tomorrow } } },
@@ -211,8 +226,29 @@ export class TripsService {
           where: { tripId, startTime: { gte: now } },
           orderBy: { startTime: "asc" },
           take: 3
+        }),
+        this.prisma.tripFund.findFirst({
+          where: { tripId, currency: trip.baseCurrency },
+          include: {
+            transactions: { select: { type: true, amount: true, voidedAt: true } },
+            expenses: { select: { amount: true, status: true } }
+          }
         })
       ]);
+
+    const publicFundSummary = publicFund
+      ? calculateFundCash(
+          publicFund.currency,
+          publicFund.transactions.map((transaction) => ({
+            ...transaction,
+            amount: transaction.amount.toString()
+          })),
+          publicFund.expenses.map((expense) => ({
+            ...expense,
+            amount: expense.amount.toString()
+          }))
+        )
+      : null;
 
     return {
       trip,
@@ -222,7 +258,15 @@ export class TripsService {
         travelerExpenseTotal._sum.shareAmount ?? new Prisma.Decimal(0),
       pendingReceipts,
       pendingProposals,
-      upcomingBookings
+      upcomingBookings,
+      publicFund: publicFund && publicFundSummary
+        ? {
+            id: publicFund.id,
+            name: publicFund.name,
+            currency: publicFund.currency,
+            balance: publicFundSummary.balance
+          }
+        : null
     };
   }
 

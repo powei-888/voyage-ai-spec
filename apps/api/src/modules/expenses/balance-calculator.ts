@@ -1,4 +1,9 @@
-import { ExpenseStatus, TripMemberKind } from "@prisma/client";
+import {
+  ExpensePaymentSource,
+  ExpenseStatus,
+  FundTransactionType,
+  TripMemberKind
+} from "@prisma/client";
 import { fromMinorUnits, toMinorUnits } from "./money";
 
 export type BalanceMember = {
@@ -8,7 +13,9 @@ export type BalanceMember = {
 };
 export type BalanceExpense = {
   amount: string;
-  payerMemberId: string;
+  paymentSource?: ExpensePaymentSource;
+  payerMemberId: string | null;
+  fundId?: string | null;
   status: ExpenseStatus;
   participants: Array<{ memberId: string; shareAmount: string }>;
 };
@@ -17,12 +24,20 @@ export type BalanceSettlement = {
   toMemberId: string;
   amount: string;
 };
+export type BalanceFundTransaction = {
+  fundId: string;
+  type: FundTransactionType;
+  memberId: string | null;
+  amount: string;
+  voidedAt: Date | null;
+};
 
 export function calculateBalances(
   members: BalanceMember[],
   expenses: BalanceExpense[],
   currency: string,
-  completedSettlements: BalanceSettlement[] = []
+  completedSettlements: BalanceSettlement[] = [],
+  fundTransactions: BalanceFundTransaction[] = []
 ) {
   const totals = new Map(
     members.map((member) => [
@@ -40,12 +55,28 @@ export function calculateBalances(
 
   for (const expense of expenses) {
     if (expense.status !== ExpenseStatus.active) continue;
-    const payer = totals.get(expense.payerMemberId);
-    if (payer) payer.paid += toMinorUnits(expense.amount, currency);
+    if (expense.paymentSource !== ExpensePaymentSource.fund && expense.payerMemberId) {
+      const payer = totals.get(expense.payerMemberId);
+      if (payer) payer.paid += toMinorUnits(expense.amount, currency);
+    }
     for (const participant of expense.participants) {
       const total = totals.get(participant.memberId);
       if (total) total.share += toMinorUnits(participant.shareAmount, currency);
     }
+  }
+
+  for (const transaction of fundTransactions) {
+    if (transaction.voidedAt || !transaction.memberId) continue;
+    const member = totals.get(transaction.memberId);
+    if (!member) continue;
+    const amount = toMinorUnits(transaction.amount, currency);
+    if (
+      transaction.type === FundTransactionType.contribution ||
+      transaction.type === FundTransactionType.collection
+    ) {
+      member.paid += amount;
+    }
+    if (transaction.type === FundTransactionType.refund) member.paid -= amount;
   }
 
   for (const settlement of completedSettlements) {
@@ -66,17 +97,60 @@ export function calculateBalances(
     balanceMinor: total.paid - total.share + total.adjustment
   }));
 
-  const creditors = balances
+  type SettlementNode = {
+    id: string;
+    memberId: string | null;
+    memberKind: TripMemberKind | null;
+    nodeType: "member" | "fund";
+    remaining: bigint;
+  };
+  const creditors: SettlementNode[] = balances
     .filter((item) => item.balanceMinor > 0n)
-    .map((item) => ({ ...item, remaining: item.balanceMinor }))
-    .sort((a, b) => a.memberId.localeCompare(b.memberId));
-  const debtors = balances
+    .map((item) => ({
+      id: item.memberId,
+      memberId: item.memberId,
+      memberKind: item.kind,
+      nodeType: "member" as const,
+      remaining: item.balanceMinor
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const debtors: SettlementNode[] = balances
     .filter((item) => item.balanceMinor < 0n)
-    .map((item) => ({ ...item, remaining: -item.balanceMinor }))
-    .sort((a, b) => a.memberId.localeCompare(b.memberId));
+    .map((item) => ({
+      id: item.memberId,
+      memberId: item.memberId,
+      memberKind: item.kind,
+      nodeType: "member" as const,
+      remaining: -item.balanceMinor
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const fundId = expenses.find((expense) => expense.fundId)?.fundId
+    ?? fundTransactions[0]?.fundId
+    ?? null;
+  const memberBalanceTotal = balances.reduce(
+    (sum, item) => sum + item.balanceMinor,
+    0n
+  );
+  if (fundId && memberBalanceTotal !== 0n) {
+    const node: SettlementNode = {
+      id: `fund:${fundId}`,
+      memberId: null,
+      memberKind: null,
+      nodeType: "fund",
+      remaining: memberBalanceTotal < 0n ? -memberBalanceTotal : memberBalanceTotal
+    };
+    if (memberBalanceTotal < 0n) creditors.push(node);
+    else debtors.push(node);
+  }
   const settlements: Array<{
     fromMemberId: string;
     toMemberId: string;
+    amount: string;
+  }> = [];
+  const fundTransfers: Array<{
+    fundId: string;
+    memberId: string;
+    type: "contribution" | "refund" | "collection";
     amount: string;
   }> = [];
 
@@ -88,11 +162,28 @@ export function calculateBalances(
     const amount = creditor!.remaining < debtor.remaining
       ? creditor!.remaining
       : debtor.remaining;
-    settlements.push({
-      fromMemberId: debtor.memberId,
-      toMemberId: creditor!.memberId,
-      amount: fromMinorUnits(amount, currency)
-    });
+    const formattedAmount = fromMinorUnits(amount, currency);
+    if (debtor.nodeType === "member" && creditor!.nodeType === "member") {
+      settlements.push({
+        fromMemberId: debtor.memberId!,
+        toMemberId: creditor!.memberId!,
+        amount: formattedAmount
+      });
+    } else if (debtor.nodeType === "member" && creditor!.nodeType === "fund") {
+      fundTransfers.push({
+        fundId: fundId!,
+        memberId: debtor.memberId!,
+        type: debtor.memberKind === TripMemberKind.external ? "collection" : "contribution",
+        amount: formattedAmount
+      });
+    } else if (debtor.nodeType === "fund" && creditor!.nodeType === "member") {
+      fundTransfers.push({
+        fundId: fundId!,
+        memberId: creditor!.memberId!,
+        type: "refund",
+        amount: formattedAmount
+      });
+    }
     creditor!.remaining -= amount;
     debtor.remaining -= amount;
     if (creditor!.remaining === 0n) creditorIndex += 1;
@@ -114,6 +205,7 @@ export function calculateBalances(
     currency,
     members: balances.map(({ balanceMinor: _balanceMinor, ...item }) => item),
     settlements,
+    fundTransfers,
     externalReceivables
   };
 }

@@ -1,4 +1,9 @@
-import { ExpenseStatus, TripMemberKind } from "@prisma/client";
+import {
+  ExpensePaymentSource,
+  ExpenseStatus,
+  FundTransactionType,
+  TripMemberKind
+} from "@prisma/client";
 import { calculateBalances } from "./balance-calculator";
 
 describe("calculateBalances", () => {
@@ -130,6 +135,96 @@ describe("calculateBalances", () => {
     ]);
     expect(result.settlements).toEqual([
       { fromMemberId: "customer", toMemberId: "buyer", amount: "500.00" }
+    ]);
+  });
+
+  it("suggests refunds when equal contributions leave cash in the public fund", () => {
+    const result = calculateBalances(
+      members,
+      [{
+        amount: "6000",
+        paymentSource: ExpensePaymentSource.fund,
+        payerMemberId: null,
+        fundId: "fund-1",
+        status: ExpenseStatus.active,
+        participants: members.map((member) => ({ memberId: member.id, shareAmount: "2000" }))
+      }],
+      "JPY",
+      [],
+      members.map((member) => ({
+        fundId: "fund-1",
+        type: FundTransactionType.contribution,
+        memberId: member.id,
+        amount: "3000",
+        voidedAt: null
+      }))
+    );
+
+    expect(result.members.map((member) => member.balance)).toEqual(["1000", "1000", "1000"]);
+    expect(result.settlements).toEqual([]);
+    expect(result.fundTransfers).toEqual([
+      { fundId: "fund-1", memberId: "amy", type: "refund", amount: "1000" },
+      { fundId: "fund-1", memberId: "tom", type: "refund", amount: "1000" },
+      { fundId: "fund-1", memberId: "wei", type: "refund", amount: "1000" }
+    ]);
+  });
+
+  it("suggests top-ups when the public fund paid more than members contributed", () => {
+    const result = calculateBalances(
+      members,
+      [{
+        amount: "6000",
+        paymentSource: ExpensePaymentSource.fund,
+        payerMemberId: null,
+        fundId: "fund-1",
+        status: ExpenseStatus.active,
+        participants: members.map((member) => ({ memberId: member.id, shareAmount: "2000" }))
+      }],
+      "JPY",
+      [],
+      members.map((member) => ({
+        fundId: "fund-1",
+        type: FundTransactionType.contribution,
+        memberId: member.id,
+        amount: "1000",
+        voidedAt: null
+      }))
+    );
+
+    expect(result.fundTransfers).toEqual([
+      { fundId: "fund-1", memberId: "amy", type: "contribution", amount: "1000" },
+      { fundId: "fund-1", memberId: "tom", type: "contribution", amount: "1000" },
+      { fundId: "fund-1", memberId: "wei", type: "contribution", amount: "1000" }
+    ]);
+  });
+
+  it("tracks a partial external collection back into the public fund", () => {
+    const result = calculateBalances(
+      [{ id: "customer", displayName: "Customer", kind: TripMemberKind.external }],
+      [{
+        amount: "500",
+        paymentSource: ExpensePaymentSource.fund,
+        payerMemberId: null,
+        fundId: "fund-1",
+        status: ExpenseStatus.active,
+        participants: [{ memberId: "customer", shareAmount: "500" }]
+      }],
+      "TWD",
+      [],
+      [{
+        fundId: "fund-1",
+        type: FundTransactionType.collection,
+        memberId: "customer",
+        amount: "200",
+        voidedAt: null
+      }]
+    );
+
+    expect(result.externalReceivables).toEqual([
+      { memberId: "customer", displayName: "Customer", amount: "300.00" }
+    ]);
+    expect(result.fundTransfers).toEqual([
+      { fundId: "fund-1", memberId: "customer", type: "collection", amount: "300.00" }
     ]);
   });
 });

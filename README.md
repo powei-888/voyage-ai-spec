@@ -17,6 +17,7 @@ AI should reduce travel chaos, but users must stay in control.
 - Day-by-day timeline
 - Expense records
 - Equal and custom split calculation
+- Auditable trip public funds with contributions, refunds, adjustments, and fund-paid expenses
 - Multi-item proxy-purchase orders grouped by external party
 - Traditional Chinese receipt line-item translation with immutable OCR originals
 - Receipt line-item assignment to proxy-purchase parties without duplicate expenses
@@ -87,7 +88,7 @@ npm run prisma:migrate
 npm run prisma:seed
 ```
 
-The seed creates a demo user, a populated Tokyo trip, members, itinerary events, an expense, a booking, and a pending proposal. Re-running the seed is safe.
+The seed creates a demo user, a populated Tokyo trip, members, a JPY public fund with contributions, itinerary events, an expense, a booking, and a pending proposal. Re-running the seed is safe.
 
 ### Run locally
 
@@ -120,7 +121,15 @@ text.
 
 Trip parties are separated into travelers and external expense parties. External parties cannot sign in, join itinerary events, or pay an expense. They can receive custom expense shares, appear in external receivables, and record repayments to a traveler. Their shares are excluded from trip budget totals and AI budget analysis.
 
-The proxy-purchase workspace keeps each outside party together with one or more requested products. A pending list has no accounting effect. Confirming a purchase atomically creates one shopping expense whose payer is a traveler and whose complete share belongs to the external party. Partial and final collections are canonical settlement records linked back to the order. Deleting a collection recalculates both the order and trip balance; cancelling an uncollected purchase voids its linked expense. Proxy-generated expenses are locked in the generic expense editor so the two views cannot drift.
+Each trip can maintain one public fund in its base currency. Contributions, refunds,
+cash adjustments, and external collections are append-only ledger records that can be
+voided with an audit reason. An expense is paid by exactly one traveler or one public
+fund; PostgreSQL constraints prevent both sources from being set together. Fund-paid
+expenses debit available cash atomically, while contributions and refunds feed the same
+member balance calculation used for settlement suggestions. Active trips keep unused
+cash as a reserve; refund suggestions appear when a trip is archived.
+
+The proxy-purchase workspace keeps each outside party together with one or more requested products. A pending list has no accounting effect. Confirming a purchase atomically creates one shopping expense paid by a traveler or the public fund, whose complete share belongs to the external party. Partial and final collections return to the original traveler or public fund and remain linked to the order. Deleting a collection recalculates the order, fund, and trip balance; cancelling an uncollected purchase voids its linked expense. Proxy-generated expenses are locked in the generic expense editor so the two views cannot drift.
 
 Receipt items can also be assigned to an existing or newly created external party. These
 source-linked orders remain pending until the receipt is confirmed. Receipt confirmation
@@ -216,7 +225,7 @@ npm run test
 npm run build
 ```
 
-API tests cover liveness/readiness, password hashing and replacement, login limiting, session revocation, invitation hashing and atomic redemption, invite-only registration, deterministic splitting, payer exclusion, rounding, multi-item proxy-purchase totals, adjusted receipt allocations, canonical purchase expenses, partial collections, external receivables, completed repayments, cross-day event movement, voided expenses, OCR queue success/retry/exhaustion, receipt confirmation idempotency, and AI proposal state transitions. Web tests cover date, money, enum formatting, and safe post-login return paths.
+API tests cover liveness/readiness, password hashing and replacement, login limiting, session revocation, invitation hashing and atomic redemption, invite-only registration, deterministic splitting, public-fund cash directions and transfer suggestions, payer exclusion, rounding, multi-item proxy-purchase totals, adjusted receipt allocations, canonical purchase expenses, partial collections, external receivables, completed repayments, cross-day event movement, voided expenses, OCR queue success/retry/exhaustion, receipt confirmation idempotency, and AI proposal state transitions. Web tests cover date, money, enum formatting, and safe post-login return paths.
 
 ### Main API routes
 
@@ -240,6 +249,10 @@ POST            /api/trips/:tripId/itinerary-days/:dayId/events/reorder
 POST            /api/trips/:tripId/events/:eventId/move
 GET|POST        /api/trips/:tripId/expenses
 GET             /api/trips/:tripId/expenses/balances
+GET|POST        /api/trips/:tripId/funds
+GET             /api/trips/:tripId/funds/:fundId
+POST            /api/trips/:tripId/funds/:fundId/transactions
+DELETE          /api/trips/:tripId/funds/:fundId/transactions/:transactionId
 GET|POST        /api/trips/:tripId/proxy-purchases
 PATCH|DELETE    /api/trips/:tripId/proxy-purchases/:purchaseId
 POST            /api/trips/:tripId/proxy-purchases/:purchaseId/confirm
@@ -262,4 +275,4 @@ POST            /api/trips/:tripId/ai-proposals/:proposalId/reject
 
 Receipt upload accepts JPEG, PNG, WebP, or PDF files up to 8 MB. Local OCR and Qwen create an editable draft with merchant, total, date, category, normalized purchase line items, and separate Traditional Chinese translations. Users can manually correct translations and assign selected items to external proxy-purchase parties. Only explicit receipt confirmation creates the canonical expense; all source-linked proxy orders share that expense instead of creating duplicates. `Expense.linkedReceiptId` remains the single unique receipt-to-expense relation, so repeated confirmation returns the same expense.
 
-AI requests create stored proposals. Accept and reject are explicit state transitions. The local Qwen provider never calls an external API or mutates trip data directly; prompts include the current itinerary, budget, category totals, and pending receipt count.
+AI requests create stored proposals. Accept and reject are explicit state transitions. The local Qwen provider never calls an external API or mutates trip data directly; prompts include the current itinerary, budget, category totals, public-fund balance, and pending receipt count.

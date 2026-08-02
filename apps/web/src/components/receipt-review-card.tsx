@@ -1,4 +1,4 @@
-import type { ItineraryEvent, Receipt, TripMember } from "@voyage/shared";
+import type { ItineraryEvent, Receipt, TripFund, TripMember } from "@voyage/shared";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -21,6 +21,7 @@ import { EXPENSE_CATEGORIES } from "../lib/options";
 import { ConfirmForm } from "./confirm-form";
 import { ExpenseSplitFields } from "./expense-split-fields";
 import { PendingButton } from "./pending-button";
+import { PaymentSourceFields } from "./payment-source-fields";
 import { ReceiptProxyImportForm } from "./receipt-proxy-import-form";
 
 const translationLabels = {
@@ -33,11 +34,13 @@ export function ReceiptReviewCard({
   tripId,
   receipt,
   members,
+  funds,
   events
 }: {
   tripId: string;
   receipt: Receipt;
   members: TripMember[];
+  funds: TripFund[];
   events: ItineraryEvent[];
 }) {
   const extracted = receipt.extractedJson;
@@ -214,14 +217,6 @@ export function ReceiptReviewCard({
             <input name="expenseDate" type="date" defaultValue={extracted.date} />
           </label>
           <label className="field">
-            <span>付款人</span>
-            <select name="payerMemberId" defaultValue={travelers[0]?.id} required>
-              {travelers.map((member) => (
-                <option value={member.id} key={member.id}>{member.displayName}</option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
             <span>關聯行程</span>
             <select name="linkedEventId" defaultValue="">
               <option value="">不關聯行程</option>
@@ -230,6 +225,7 @@ export function ReceiptReviewCard({
               ))}
             </select>
           </label>
+          <PaymentSourceFields travelers={travelers} funds={funds} />
           {activePurchases.length > 0 ? (
             <div className="receipt-proxy-summary field-span-2">
               <span>

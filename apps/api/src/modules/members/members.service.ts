@@ -145,7 +145,10 @@ export class MembersService {
             proxyPurchasesReceived: true,
             proxyPurchasesPaid: true,
             createdProxyPurchases: true,
-            createdInvites: true
+            createdInvites: true,
+            fundTransactions: true,
+            createdFundTransactions: true,
+            voidedFundTransactions: true
           }
         }
       }

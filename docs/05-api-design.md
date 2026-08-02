@@ -174,6 +174,30 @@ Create a pending list or include both `payerMemberId` and `purchasedAt` to recor
 
 Confirming a pending order creates one custom-split shopping expense. Collections use the settlements endpoint with `proxyPurchaseId`; the API rejects generic or excessive collection attempts while that order remains open.
 
+## Public funds
+
+```http
+GET    /api/trips/:tripId/funds
+POST   /api/trips/:tripId/funds
+GET    /api/trips/:tripId/funds/:fundId
+POST   /api/trips/:tripId/funds/:fundId/transactions
+DELETE /api/trips/:tripId/funds/:fundId/transactions/:transactionId
+```
+
+Fund transaction types are `contribution`, `refund`, `adjustment_credit`,
+`adjustment_debit`, and `collection`. Deletion is a domain-level void operation and
+requires a reason. Fund-paid expense and receipt-confirmation requests use:
+
+```json
+{
+  "paymentSource": "fund",
+  "fundId": "fund-id",
+  "payerMemberId": null
+}
+```
+
+Fund balance checks and expense creation run in the same serializable transaction.
+
 ## Receipts
 
 ```http

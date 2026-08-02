@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
+  ExpensePaymentSource,
   ExpenseSplitMethod,
   Prisma,
   ProxyPurchaseStatus,
@@ -11,11 +12,13 @@ import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
 import { SplitCalculatorService } from "../expenses/split-calculator.service";
 import { fromMinorUnits, toMinorUnits } from "../expenses/money";
+import { FundsService } from "../funds/funds.service";
 import { ConfirmReceiptDto } from "./receipts.dto";
 
 const confirmedExpenseInclude = {
   participants: true,
-  payerMember: { select: { id: true, displayName: true } }
+  payerMember: { select: { id: true, displayName: true } },
+  fund: { select: { id: true, name: true, currency: true } }
 } as const;
 
 @Injectable()
@@ -23,7 +26,8 @@ export class ReceiptConfirmationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: TripAccessService,
-    private readonly split: SplitCalculatorService
+    private readonly split: SplitCalculatorService,
+    private readonly funds: FundsService
   ) {}
 
   async confirm(
@@ -47,12 +51,24 @@ export class ReceiptConfirmationService {
       );
     }
     const splitMethod = dto.splitMethod ?? ExpenseSplitMethod.equal;
+    const paymentSource = dto.paymentSource ?? ExpensePaymentSource.member;
+    const payerMemberId = dto.payerMemberId || null;
+    const fundId = dto.fundId || null;
+    if (
+      (paymentSource === ExpensePaymentSource.member && (!payerMemberId || fundId)) ||
+      (paymentSource === ExpensePaymentSource.fund && (payerMemberId || !fundId))
+    ) {
+      throw new DomainError(
+        "INVALID_EXPENSE_PAYMENT_SOURCE",
+        "Choose either one traveler payer or one public fund."
+      );
+    }
     const travelerMemberIds = splitMethod === ExpenseSplitMethod.custom
       ? (dto.splitShares ?? []).map((share) => share.memberId)
       : dto.participantMemberIds ?? [];
     await this.access.assertTravelersBelongToTrip(
       tripId,
-      [dto.payerMemberId, ...travelerMemberIds]
+      [...(payerMemberId ? [payerMemberId] : []), ...travelerMemberIds]
     );
 
     try {
@@ -83,6 +99,9 @@ export class ReceiptConfirmationService {
               "Only extracted receipts can be confirmed.",
               HttpStatus.CONFLICT
             );
+          }
+          if (paymentSource === ExpensePaymentSource.fund) {
+            await this.funds.assertAvailable(tx, tripId, fundId!, dto.amount);
           }
           if (dto.linkedEventId) {
             const event = await tx.itineraryEvent.findFirst({
@@ -139,7 +158,7 @@ export class ReceiptConfirmationService {
               : this.split.equalSplit(
                   fromMinorUnits(travelerTotalMinor, dto.currency),
                   dto.currency,
-                  dto.payerMemberId,
+                  payerMemberId,
                   dto.participantMemberIds ?? []
                 );
           const shares = [
@@ -159,7 +178,9 @@ export class ReceiptConfirmationService {
               currency: dto.currency,
               category: dto.category,
               expenseDate: dto.expenseDate ? parseDateOnly(dto.expenseDate) : null,
-              payerMemberId: dto.payerMemberId,
+              paymentSource,
+              payerMemberId,
+              fundId,
               splitMethod: proxyPurchases.length
                 ? ExpenseSplitMethod.custom
                 : splitMethod,
@@ -178,7 +199,9 @@ export class ReceiptConfirmationService {
                 sourceReceiptId: receiptId
               },
               data: {
-                payerMemberId: dto.payerMemberId,
+                paymentSource,
+                payerMemberId,
+                fundId,
                 expenseId: expense.id,
                 purchasedAt: dto.expenseDate
                   ? parseDateOnly(dto.expenseDate)

@@ -1,4 +1,4 @@
-import type { ProxyPurchase, Trip, TripMember } from "@voyage/shared";
+import type { ProxyPurchase, Trip, TripFund, TripMember } from "@voyage/shared";
 import {
   CheckCircle2,
   CircleDollarSign,
@@ -24,6 +24,7 @@ import { Notice } from "../../../../components/notice";
 import { PageHeading } from "../../../../components/page-heading";
 import { PendingButton } from "../../../../components/pending-button";
 import { ProxyPurchaseForm } from "../../../../components/proxy-purchase-form";
+import { PaymentSourceFields } from "../../../../components/payment-source-fields";
 import { apiGet } from "../../../../lib/api";
 import { formatDate, formatMoney } from "../../../../lib/format";
 
@@ -41,10 +42,11 @@ const statusLabels: Record<ProxyPurchase["status"], string> = {
 
 export default async function ProxyPurchasesPage({ params, searchParams }: PageProps) {
   const [{ tripId }, query] = await Promise.all([params, searchParams]);
-  const [trip, members, purchases] = await Promise.all([
+  const [trip, members, purchases, funds] = await Promise.all([
     apiGet<Trip>(`/trips/${tripId}`),
     apiGet<TripMember[]>(`/trips/${tripId}/members`),
-    apiGet<ProxyPurchase[]>(`/trips/${tripId}/proxy-purchases`)
+    apiGet<ProxyPurchase[]>(`/trips/${tripId}/proxy-purchases`),
+    apiGet<TripFund[]>(`/trips/${tripId}/funds`)
   ]);
   const externalMembers = members.filter((member) => member.kind === "external");
   const travelers = members.filter((member) => member.kind === "traveler");
@@ -140,13 +142,14 @@ export default async function ProxyPurchasesPage({ params, searchParams }: PageP
                               trip={trip}
                               externalMembers={externalMembers}
                               travelers={travelers}
+                              funds={funds}
                               today={today}
                               purchase={purchase}
                               submitLabel="儲存清單"
                             />
                           </details>
                           <form action={confirmProxyPurchaseAction.bind(null, tripId, purchase.id)} className="proxy-confirm-form">
-                            <label className="field"><span>墊付旅伴</span><select name="payerMemberId" defaultValue={travelers[0]?.id} required>{travelers.map((member) => <option value={member.id} key={member.id}>{member.displayName}</option>)}</select></label>
+                            <PaymentSourceFields travelers={travelers} funds={funds} memberLabel="墊付旅伴" />
                             <label className="field"><span>購買日期</span><input name="purchasedAt" type="date" defaultValue={today} required /></label>
                             <PendingButton className="button button-primary" type="submit" pendingLabel="入帳中…"><ShoppingBag size={15} /> 確認已購買</PendingButton>
                           </form>
@@ -163,13 +166,15 @@ export default async function ProxyPurchasesPage({ params, searchParams }: PageP
                       {purchase.status === "purchased" ? (
                         <div className="proxy-collection-panel">
                           <div className="proxy-collection-progress">
-                            <span>墊付人：{purchase.payerMember?.displayName} · {purchase.purchasedAt ? formatDate(purchase.purchasedAt) : ""}</span>
+                            <span>付款來源：{purchase.paymentSource === "fund" ? purchase.fund?.name || "公費" : purchase.payerMember?.displayName} · {purchase.purchasedAt ? formatDate(purchase.purchasedAt) : ""}</span>
                             <span>已收 {formatMoney(purchase.collectedAmount, purchase.currency)}</span>
                             <strong>待收 {formatMoney(purchase.outstandingAmount, purchase.currency)}</strong>
                           </div>
                           <form action={collectProxyPurchaseAction.bind(null, tripId, purchase.id)} className="proxy-collect-form">
                             <input type="hidden" name="fromMemberId" value={purchase.externalMemberId} />
                             <input type="hidden" name="toMemberId" value={purchase.payerMemberId || ""} />
+                            <input type="hidden" name="paymentSource" value={purchase.paymentSource} />
+                            <input type="hidden" name="fundId" value={purchase.fundId || ""} />
                             <input type="hidden" name="currency" value={purchase.currency} />
                             <label className="field"><span>本次收款</span><input name="amount" inputMode="decimal" defaultValue={purchase.outstandingAmount} required /></label>
                             <label className="field"><span>收款日期</span><input name="settledAt" type="date" defaultValue={today} required /></label>
@@ -183,13 +188,14 @@ export default async function ProxyPurchasesPage({ params, searchParams }: PageP
                         <div className="proxy-settled"><CheckCircle2 size={18} /><span>這張代購單已全部收回</span></div>
                       ) : null}
 
-                      {purchase.settlements.length > 0 ? (
+                      {purchase.collections.length > 0 ? (
                         <div className="proxy-collection-history">
-                          {purchase.settlements.map((settlement) => (
-                            <div key={settlement.id}>
-                              <span>{formatDate(settlement.settledAt)}</span>
-                              <strong>{formatMoney(settlement.amount, purchase.currency)}</strong>
-                              <ConfirmForm action={deleteProxyCollectionAction.bind(null, tripId, settlement.id)} message="要刪除這筆代購收款嗎？待收金額將重新計算。">
+                          {purchase.collections.map((collection) => (
+                            <div key={`${collection.source}-${collection.id}`}>
+                              <span>{formatDate(collection.settledAt)}{collection.source === "fund" ? " · 回到公費" : ""}</span>
+                              <strong>{formatMoney(collection.amount, purchase.currency)}</strong>
+                              <ConfirmForm action={deleteProxyCollectionAction.bind(null, tripId, collection.id, collection.source, collection.fundId)} message="要刪除這筆代購收款嗎？待收金額將重新計算。">
+                                <input type="hidden" name="reason" value="使用者刪除代購收款" />
                                 <button className="icon-button danger" type="submit" title="刪除收款紀錄"><Trash2 size={14} /></button>
                               </ConfirmForm>
                             </div>
@@ -218,6 +224,7 @@ export default async function ProxyPurchasesPage({ params, searchParams }: PageP
           trip={trip}
           externalMembers={externalMembers}
           travelers={travelers}
+          funds={funds}
           today={today}
           submitLabel="建立代購單"
         />

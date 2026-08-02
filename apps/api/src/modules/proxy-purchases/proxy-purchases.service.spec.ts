@@ -1,6 +1,7 @@
 import { ExpenseStatus, ProxyPurchaseStatus, TripMemberKind } from "@prisma/client";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
+import { FundsService } from "../funds/funds.service";
 import { ProxyPurchasesService } from "./proxy-purchases.service";
 
 describe("ProxyPurchasesService", () => {
@@ -49,7 +50,8 @@ describe("ProxyPurchasesService", () => {
     };
     const service = new ProxyPurchasesService(
       prisma as unknown as PrismaService,
-      access as unknown as TripAccessService
+      access as unknown as TripAccessService,
+      {} as FundsService
     );
 
     const result = await service.create("user-1", "trip-1", {
@@ -106,7 +108,8 @@ describe("ProxyPurchasesService", () => {
     const access = { requireMember: jest.fn().mockResolvedValue({ id: "actor-member" }) };
     const service = new ProxyPurchasesService(
       prisma as unknown as PrismaService,
-      access as unknown as TripAccessService
+      access as unknown as TripAccessService,
+      {} as FundsService
     );
 
     await expect(service.cancel("user-1", "trip-1", "proxy-1"))
@@ -189,7 +192,8 @@ describe("ProxyPurchasesService", () => {
     };
     const service = new ProxyPurchasesService(
       prisma as unknown as PrismaService,
-      access as unknown as TripAccessService
+      access as unknown as TripAccessService,
+      {} as FundsService
     );
 
     const result = await service.createFromReceipt(

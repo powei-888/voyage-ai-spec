@@ -1,15 +1,17 @@
-import type { Expense, ItineraryEvent, Trip, TripMember } from "@voyage/shared";
+import type { Expense, ItineraryEvent, Trip, TripFund, TripMember } from "@voyage/shared";
 import { Save } from "lucide-react";
 import { toDateInput, titleCase } from "../lib/format";
 import { EXPENSE_CATEGORIES } from "../lib/options";
 import { ExpenseSplitFields } from "./expense-split-fields";
 import { PendingButton } from "./pending-button";
+import { PaymentSourceFields } from "./payment-source-fields";
 
 export function ExpenseForm({
   action,
   trip,
   members,
   events,
+  funds,
   expense,
   submitLabel
 }: {
@@ -17,6 +19,7 @@ export function ExpenseForm({
   trip: Trip;
   members: TripMember[];
   events: ItineraryEvent[];
+  funds: TripFund[];
   expense?: Expense;
   submitLabel: string;
 }) {
@@ -62,14 +65,6 @@ export function ExpenseForm({
         />
       </label>
       <label className="field">
-        <span>付款人</span>
-        <select name="payerMemberId" defaultValue={expense?.payerMemberId || travelers[0]?.id} required>
-          {travelers.map((member) => (
-            <option value={member.id} key={member.id}>{member.displayName}</option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
         <span>關聯行程</span>
         <select name="linkedEventId" defaultValue={expense?.linkedEventId || ""}>
           <option value="">不關聯行程</option>
@@ -78,6 +73,13 @@ export function ExpenseForm({
           ))}
         </select>
       </label>
+      <PaymentSourceFields
+        travelers={travelers}
+        funds={funds}
+        defaultSource={expense?.paymentSource}
+        defaultPayerMemberId={expense?.payerMemberId}
+        defaultFundId={expense?.fundId}
+      />
       <ExpenseSplitFields members={members} expense={expense} />
       <div className="form-actions field-span-2">
         <PendingButton

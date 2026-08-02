@@ -2,6 +2,7 @@ import { ExpenseCategory, ReceiptStatus } from "@prisma/client";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
 import { SplitCalculatorService } from "../expenses/split-calculator.service";
+import { FundsService } from "../funds/funds.service";
 import { ReceiptConfirmationService } from "./receipt-confirmation.service";
 import { ConfirmReceiptDto } from "./receipts.dto";
 
@@ -59,7 +60,8 @@ describe("ReceiptConfirmationService", () => {
     const service = new ReceiptConfirmationService(
       prisma as unknown as PrismaService,
       access as unknown as TripAccessService,
-      new SplitCalculatorService()
+      new SplitCalculatorService(),
+      {} as FundsService
     );
     const dto: ConfirmReceiptDto = {
       title: "Lunch",
@@ -131,7 +133,8 @@ describe("ReceiptConfirmationService", () => {
     const service = new ReceiptConfirmationService(
       prisma as unknown as PrismaService,
       access as unknown as TripAccessService,
-      new SplitCalculatorService()
+      new SplitCalculatorService(),
+      {} as FundsService
     );
 
     await service.confirm("user-1", "trip-1", "receipt-1", {

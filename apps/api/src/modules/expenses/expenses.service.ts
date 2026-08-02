@@ -1,15 +1,22 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { ExpenseSplitMethod, ExpenseStatus } from "@prisma/client";
+import {
+  ExpensePaymentSource,
+  ExpenseSplitMethod,
+  ExpenseStatus,
+  Prisma
+} from "@prisma/client";
 import { parseDateOnly } from "../../common/date-utils";
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
+import { FundsService } from "../funds/funds.service";
 import { calculateBalances } from "./balance-calculator";
 import { CreateExpenseDto, UpdateExpenseDto } from "./expenses.dto";
 import { SplitCalculatorService } from "./split-calculator.service";
 
 const expenseInclude = {
   payerMember: { select: { id: true, displayName: true } },
+  fund: { select: { id: true, name: true, currency: true } },
   participants: {
     include: { member: { select: { id: true, displayName: true } } },
     orderBy: { memberId: "asc" as const }
@@ -24,7 +31,8 @@ export class ExpensesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: TripAccessService,
-    private readonly split: SplitCalculatorService
+    private readonly split: SplitCalculatorService,
+    private readonly funds: FundsService
   ) {}
 
   async list(userId: string, tripId: string) {
@@ -50,25 +58,35 @@ export class ExpensesService {
 
   async create(userId: string, tripId: string, dto: CreateExpenseDto) {
     const actor = await this.access.requireMember(tripId, userId);
-    const shares = await this.validateAndSplit(tripId, dto);
+    const validated = await this.validateAndSplit(tripId, dto);
+    const data = {
+      tripId,
+      title: dto.title.trim(),
+      merchant: dto.merchant?.trim() || null,
+      amount: dto.amount,
+      currency: dto.currency,
+      category: dto.category,
+      expenseDate: dto.expenseDate ? parseDateOnly(dto.expenseDate) : null,
+      paymentSource: validated.paymentSource,
+      payerMemberId: validated.payerMemberId,
+      fundId: validated.fundId,
+      splitMethod: dto.splitMethod,
+      linkedEventId: dto.linkedEventId || null,
+      createdByMemberId: actor.id,
+      participants: { create: validated.shares }
+    };
 
-    return this.prisma.expense.create({
-      data: {
-        tripId,
-        title: dto.title.trim(),
-        merchant: dto.merchant?.trim() || null,
-        amount: dto.amount,
-        currency: dto.currency,
-        category: dto.category,
-        expenseDate: dto.expenseDate ? parseDateOnly(dto.expenseDate) : null,
-        payerMemberId: dto.payerMemberId,
-        splitMethod: dto.splitMethod,
-        linkedEventId: dto.linkedEventId || null,
-        createdByMemberId: actor.id,
-        participants: { create: shares }
-      },
-      include: expenseInclude
-    });
+    if (validated.paymentSource === ExpensePaymentSource.fund) {
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          await this.funds.assertAvailable(tx, tripId, validated.fundId!, dto.amount);
+          return tx.expense.create({ data, include: expenseInclude });
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      } catch (error) {
+        this.rethrowFundConflict(error);
+      }
+    }
+    return this.prisma.expense.create({ data, include: expenseInclude });
   }
 
   async update(
@@ -107,7 +125,11 @@ export class ExpensesService {
         dto.expenseDate === undefined
           ? existing.expenseDate?.toISOString().slice(0, 10)
           : dto.expenseDate ?? undefined,
-      payerMemberId: dto.payerMemberId ?? existing.payerMemberId,
+      payerMemberId: dto.payerMemberId === undefined
+        ? existing.payerMemberId ?? undefined
+        : dto.payerMemberId ?? undefined,
+      paymentSource: dto.paymentSource ?? existing.paymentSource,
+      fundId: dto.fundId === undefined ? existing.fundId ?? undefined : dto.fundId ?? undefined,
       splitMethod: dto.splitMethod ?? existing.splitMethod,
       participantMemberIds:
         dto.participantMemberIds ?? existingShares.map((item) => item.memberId),
@@ -117,12 +139,27 @@ export class ExpensesService {
           ? existing.linkedEventId ?? undefined
           : dto.linkedEventId ?? undefined
     };
-    const shares = await this.validateAndSplit(tripId, merged);
+    const validated = await this.validateAndSplit(tripId, merged);
 
-    return this.prisma.$transaction(async (tx) => {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+      if (validated.paymentSource === ExpensePaymentSource.fund) {
+        const reusableAmount = existing.paymentSource === ExpensePaymentSource.fund
+          && existing.fundId === validated.fundId
+          && existing.status === ExpenseStatus.active
+            ? existing.amount.toString()
+            : "0";
+        await this.funds.assertAvailable(
+          tx,
+          tripId,
+          validated.fundId!,
+          merged.amount,
+          reusableAmount
+        );
+      }
       await tx.expenseParticipant.deleteMany({ where: { expenseId } });
       await tx.expenseParticipant.createMany({
-        data: shares.map((share) => ({ expenseId, ...share }))
+        data: validated.shares.map((share) => ({ expenseId, ...share }))
       });
       return tx.expense.update({
         where: { id: expenseId },
@@ -133,14 +170,19 @@ export class ExpensesService {
           currency: merged.currency,
           category: merged.category,
           expenseDate: merged.expenseDate ? parseDateOnly(merged.expenseDate) : null,
-          payerMemberId: merged.payerMemberId,
+          paymentSource: validated.paymentSource,
+          payerMemberId: validated.payerMemberId,
+          fundId: validated.fundId,
           splitMethod: merged.splitMethod,
           linkedEventId: dto.linkedEventId === null ? null : merged.linkedEventId,
           status: dto.status
         },
         include: expenseInclude
       });
-    });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      this.rethrowFundConflict(error);
+    }
   }
 
   async void(userId: string, tripId: string, expenseId: string) {
@@ -179,13 +221,28 @@ export class ExpensesService {
         expenses: {
           select: {
             amount: true,
+            paymentSource: true,
             payerMemberId: true,
+            fundId: true,
             status: true,
             participants: { select: { memberId: true, shareAmount: true } }
           }
         },
         settlements: {
           select: { fromMemberId: true, toMemberId: true, amount: true }
+        },
+        funds: {
+          select: {
+            transactions: {
+              select: {
+                fundId: true,
+                type: true,
+                memberId: true,
+                amount: true,
+                voidedAt: true
+              }
+            }
+          }
         }
       }
     });
@@ -206,7 +263,11 @@ export class ExpensesService {
       trip.settlements.map((settlement) => ({
         ...settlement,
         amount: settlement.amount.toString()
-      }))
+      })),
+      trip.funds.flatMap((fund) => fund.transactions.map((transaction) => ({
+        ...transaction,
+        amount: transaction.amount.toString()
+      })))
     );
   }
 
@@ -225,16 +286,41 @@ export class ExpensesService {
         HttpStatus.UNPROCESSABLE_ENTITY
       );
     }
+    const paymentSource = dto.paymentSource ?? ExpensePaymentSource.member;
+    const payerMemberId = dto.payerMemberId || null;
+    const fundId = dto.fundId || null;
+    if (paymentSource === ExpensePaymentSource.member) {
+      if (!payerMemberId || fundId) {
+        throw new DomainError(
+          "INVALID_EXPENSE_PAYMENT_SOURCE",
+          "A member-paid expense requires one traveler payer and no public fund."
+        );
+      }
+      await this.access.assertTravelersBelongToTrip(tripId, [payerMemberId]);
+    } else {
+      if (payerMemberId || !fundId) {
+        throw new DomainError(
+          "INVALID_EXPENSE_PAYMENT_SOURCE",
+          "A public-fund expense requires one fund and no traveler payer."
+        );
+      }
+      const fund = await this.prisma.tripFund.findFirst({
+        where: { id: fundId, tripId, currency: dto.currency },
+        select: { id: true }
+      });
+      if (!fund) {
+        throw new DomainError("INVALID_EXPENSE_FUND", "Public fund is not in this trip.");
+      }
+    }
     const shares =
       dto.splitMethod === ExpenseSplitMethod.custom
         ? this.split.customSplit(dto.amount, dto.currency, dto.splitShares)
         : this.split.equalSplit(
             dto.amount,
             dto.currency,
-            dto.payerMemberId,
+            payerMemberId,
             dto.participantMemberIds
           );
-    await this.access.assertTravelersBelongToTrip(tripId, [dto.payerMemberId]);
     await this.access.assertMembersBelongToTrip(
       tripId,
       shares.map((share) => share.memberId)
@@ -248,6 +334,17 @@ export class ExpensesService {
         throw new DomainError("INVALID_LINKED_EVENT", "Linked event is not in this trip.");
       }
     }
-    return shares;
+    return { shares, paymentSource, payerMemberId, fundId };
+  }
+
+  private rethrowFundConflict(error: unknown): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      throw new DomainError(
+        "FUND_BALANCE_CHANGED",
+        "The public fund changed while saving. Please try again.",
+        HttpStatus.CONFLICT
+      );
+    }
+    throw error;
   }
 }

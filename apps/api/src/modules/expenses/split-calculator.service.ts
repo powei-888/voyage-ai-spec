@@ -12,13 +12,13 @@ export class SplitCalculatorService {
   equalSplit(
     amount: string,
     currency: string,
-    payerMemberId: string,
+    payerMemberId: string | null,
     participantMemberIds: string[]
   ): ExpenseShare[] {
     this.assertUniqueParticipants(participantMemberIds);
     const orderedIds = [...participantMemberIds].sort((a, b) => {
-      if (a === payerMemberId) return -1;
-      if (b === payerMemberId) return 1;
+      if (payerMemberId && a === payerMemberId) return -1;
+      if (payerMemberId && b === payerMemberId) return 1;
       return a.localeCompare(b);
     });
     const total = toMinorUnits(amount, currency);

@@ -66,7 +66,9 @@ function expensePayload(formData: FormData, update = false) {
     currency: formString(formData, "currency"),
     category: formString(formData, "category") || "other",
     expenseDate: update ? nullableString(formData, "expenseDate") : optionalString(formData, "expenseDate"),
-    payerMemberId: formString(formData, "payerMemberId"),
+    paymentSource: formString(formData, "paymentSource") || "member",
+    payerMemberId: nullableString(formData, "payerMemberId"),
+    fundId: nullableString(formData, "fundId"),
     splitMethod: formString(formData, "splitMethod") || "equal",
     participantMemberIds: formStrings(formData, "participantMemberIds"),
     splitShares: formStrings(formData, "participantMemberIds").map((memberId) => ({

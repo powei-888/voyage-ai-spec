@@ -6,6 +6,7 @@ const {
   BookingType,
   EventCategory,
   ExpenseCategory,
+  FundTransactionType,
   PrismaClient,
   TripRole
 } = require("@prisma/client");
@@ -32,7 +33,11 @@ const ids = {
   event2: "40000000-0000-4000-8000-000000000002",
   expense: "50000000-0000-4000-8000-000000000001",
   booking: "60000000-0000-4000-8000-000000000001",
-  proposal: "70000000-0000-4000-8000-000000000001"
+  proposal: "70000000-0000-4000-8000-000000000001",
+  fund: "80000000-0000-4000-8000-000000000001",
+  fundOwner: "81000000-0000-4000-8000-000000000001",
+  fundAmy: "81000000-0000-4000-8000-000000000002",
+  fundTom: "81000000-0000-4000-8000-000000000003"
 };
 
 async function main() {
@@ -84,6 +89,37 @@ async function main() {
       where: { id: member.id },
       update: { displayName: member.displayName },
       create: { ...member, tripId: ids.trip }
+    });
+  }
+
+  await prisma.tripFund.upsert({
+    where: { id: ids.fund },
+    update: { name: "旅程公費" },
+    create: {
+      id: ids.fund,
+      tripId: ids.trip,
+      name: "旅程公費",
+      currency: "JPY"
+    }
+  });
+  for (const [id, memberId] of [
+    [ids.fundOwner, ids.owner],
+    [ids.fundAmy, ids.amy],
+    [ids.fundTom, ids.tom]
+  ]) {
+    await prisma.fundTransaction.upsert({
+      where: { id },
+      update: { amount: "5000" },
+      create: {
+        id,
+        fundId: ids.fund,
+        type: FundTransactionType.contribution,
+        memberId,
+        amount: "5000",
+        transactionDate: new Date("2026-09-15T00:00:00.000Z"),
+        note: "行前公費",
+        createdByMemberId: ids.owner
+      }
     });
   }
 

@@ -5,12 +5,14 @@ import type {
   ProxyPurchase,
   Settlement,
   Trip,
+  TripFund,
   TripMember
 } from "@voyage/shared";
 import {
   CheckCircle2,
   CreditCard,
   HandCoins,
+  Landmark,
   Pencil,
   Plus,
   ReceiptText,
@@ -42,14 +44,15 @@ type PageProps = {
 
 export default async function ExpensesPage({ params, searchParams }: PageProps) {
   const [{ tripId }, query] = await Promise.all([params, searchParams]);
-  const [trip, members, expenses, balances, days, settlements, proxyPurchases] = await Promise.all([
+  const [trip, members, expenses, balances, days, settlements, proxyPurchases, funds] = await Promise.all([
     apiGet<Trip>(`/trips/${tripId}`),
     apiGet<TripMember[]>(`/trips/${tripId}/members`),
     apiGet<Expense[]>(`/trips/${tripId}/expenses`),
     apiGet<ExpenseBalances>(`/trips/${tripId}/expenses/balances`),
     apiGet<ItineraryDay[]>(`/trips/${tripId}/itinerary-days`),
     apiGet<Settlement[]>(`/trips/${tripId}/settlements`),
-    apiGet<ProxyPurchase[]>(`/trips/${tripId}/proxy-purchases`)
+    apiGet<ProxyPurchase[]>(`/trips/${tripId}/proxy-purchases`),
+    apiGet<TripFund[]>(`/trips/${tripId}/funds`)
   ]);
   const events = days.flatMap((day) => day.events);
   const names = new Map(members.map((member) => [member.id, member.displayName]));
@@ -65,6 +68,9 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
     proxyPurchases
       .filter((purchase) => purchase.status === "purchased")
       .map((purchase) => purchase.externalMemberId)
+  );
+  const visibleFundTransfers = balances.fundTransfers.filter(
+    (transfer) => transfer.type !== "refund" || trip.status === "archived"
   );
 
   return (
@@ -135,7 +141,7 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
           <div><p className="eyebrow">下一步</p><h2>建議還款</h2></div>
           <HandCoins size={18} />
         </div>
-        {balances.settlements.length === 0 ? (
+        {balances.settlements.length === 0 && visibleFundTransfers.length === 0 ? (
           <div className="settled-state"><CheckCircle2 size={20} /><span>目前帳目已結清</span></div>
         ) : (
           <div className="settlement-list">
@@ -165,6 +171,28 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                   </PendingButton>
                 )}
               </form>
+            ))}
+            {visibleFundTransfers.map((transfer) => (
+              <div className="settlement-row" key={`${transfer.type}-${transfer.memberId}`}>
+                <span>
+                  <strong>{names.get(transfer.memberId)}</strong>
+                  {transfer.type === "refund"
+                    ? " 由公費退回"
+                    : transfer.type === "collection"
+                      ? " 繳回公費"
+                      : " 補繳至公費"}
+                </span>
+                <b>{formatMoney(transfer.amount, balances.currency)}</b>
+                <a
+                  className="button button-secondary button-compact"
+                  href={transfer.type === "collection" && openProxyMembers.has(transfer.memberId)
+                    ? `/trips/${tripId}/proxy-purchases`
+                    : `/trips/${tripId}/funds`}
+                >
+                  {transfer.type === "collection" ? <ShoppingBag size={15} /> : <Landmark size={15} />}
+                  處理
+                </a>
+              </div>
             ))}
           </div>
         )}
@@ -211,7 +239,7 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                   <div>
                     <span className="category-label">{titleCase(expense.category)} · {expense.splitMethod === "custom" ? "自訂分攤" : "平均分攤"}</span>
                     <h3>{expense.title}</h3>
-                    <p>{expense.merchant || "未填商家"} · 付款人：{expense.payerMember.displayName}</p>
+                    <p>{expense.merchant || "未填商家"} · 付款來源：{expense.paymentSource === "fund" ? expense.fund?.name || "公費" : expense.payerMember?.displayName || "旅伴"}</p>
                     {externalShares.length > 0 ? (
                       <p className="proxy-share-summary">
                         <ShoppingBag size={13} />
@@ -233,6 +261,7 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                         trip={trip}
                         members={members}
                         events={events}
+                        funds={funds}
                         expense={expense}
                         submitLabel="儲存支出"
                       />
@@ -266,6 +295,7 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
           trip={trip}
           members={members}
           events={events}
+          funds={funds}
           submitLabel="新增支出"
         />
       </section>

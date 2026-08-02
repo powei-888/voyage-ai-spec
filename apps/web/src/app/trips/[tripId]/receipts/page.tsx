@@ -1,4 +1,4 @@
-import type { ItineraryDay, Receipt, TripMember } from "@voyage/shared";
+import type { ItineraryDay, Receipt, TripFund, TripMember } from "@voyage/shared";
 import { CheckCircle2, Clock3, RefreshCcw, ReceiptText, Trash2, TriangleAlert, Upload } from "lucide-react";
 import { deleteReceiptAction, retryReceiptAction, uploadReceiptAction } from "../../../actions/receipt-actions";
 import { EmptyState } from "../../../../components/empty-state";
@@ -17,10 +17,11 @@ type PageProps = {
 
 export default async function ReceiptsPage({ params, searchParams }: PageProps) {
   const [{ tripId }, query] = await Promise.all([params, searchParams]);
-  const [receipts, members, days] = await Promise.all([
+  const [receipts, members, days, funds] = await Promise.all([
     apiGet<Receipt[]>(`/trips/${tripId}/receipts`),
     apiGet<TripMember[]>(`/trips/${tripId}/members`),
-    apiGet<ItineraryDay[]>(`/trips/${tripId}/itinerary-days`)
+    apiGet<ItineraryDay[]>(`/trips/${tripId}/itinerary-days`),
+    apiGet<TripFund[]>(`/trips/${tripId}/funds`)
   ]);
   const events = days.flatMap((day) => day.events);
   const pending = receipts.filter((receipt) => receipt.ocrStatus === "extracted");
@@ -53,6 +54,7 @@ export default async function ReceiptsPage({ params, searchParams }: PageProps) 
                 tripId={tripId}
                 receipt={receipt}
                 members={members}
+                funds={funds}
                 events={events}
                 key={receipt.id}
               />

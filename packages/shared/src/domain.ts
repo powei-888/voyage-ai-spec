@@ -150,12 +150,15 @@ export type Expense = {
   currency: string;
   category: string;
   expenseDate: string | null;
-  payerMemberId: string;
+  paymentSource: "member" | "fund";
+  payerMemberId: string | null;
+  fundId: string | null;
   linkedReceiptId: string | null;
   linkedEventId: string | null;
   status: "active" | "voided";
   splitMethod: "equal" | "custom";
-  payerMember: { id: string; displayName: string };
+  payerMember: { id: string; displayName: string } | null;
+  fund: { id: string; name: string; currency: string } | null;
   participants: ExpenseParticipant[];
   linkedEvent: { id: string; title: string } | null;
   proxyPurchases: Array<{ id: string }>;
@@ -181,6 +184,79 @@ export type ExpenseBalances = {
     displayName: string;
     amount: string;
   }>;
+  fundTransfers: Array<{
+    fundId: string;
+    memberId: string;
+    type: "contribution" | "refund" | "collection";
+    amount: string;
+  }>;
+};
+
+export type FundTransactionType =
+  | "contribution"
+  | "refund"
+  | "adjustment_credit"
+  | "adjustment_debit"
+  | "collection";
+
+export type FundLedgerTransaction = {
+  kind: "transaction";
+  id: string;
+  type: FundTransactionType;
+  amount: string;
+  direction: "in" | "out";
+  occurredAt: string;
+  note: string | null;
+  status: "active" | "voided";
+  member: { id: string; displayName: string; kind: "traveler" | "external" } | null;
+  createdByMember: { id: string; displayName: string } | null;
+  voidedAt: string | null;
+  voidedByMember: { id: string; displayName: string } | null;
+  voidReason: string | null;
+  proxyPurchase: {
+    id: string;
+    externalMember: { id: string; displayName: string };
+  } | null;
+};
+
+export type FundLedgerExpense = {
+  kind: "expense";
+  id: string;
+  type: "expense";
+  amount: string;
+  direction: "out";
+  occurredAt: string;
+  note: string | null;
+  status: "active" | "voided";
+  title: string;
+  linkedReceiptId: string | null;
+  proxyPurchaseId: string | null;
+};
+
+export type TripFund = {
+  id: string;
+  tripId: string;
+  name: string;
+  currency: string;
+  balance: string;
+  totals: {
+    contributions: string;
+    refunds: string;
+    adjustmentCredits: string;
+    adjustmentDebits: string;
+    collections: string;
+    expenses: string;
+  };
+  memberPositions: Array<{
+    member: { id: string; displayName: string; kind: "traveler" | "external" };
+    contributedAmount: string;
+    refundedAmount: string;
+    collectedAmount: string;
+    netAmount: string;
+  }>;
+  ledger: Array<FundLedgerTransaction | FundLedgerExpense>;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ReceiptLineItem = {
@@ -228,6 +304,8 @@ export type ProxyPurchase = {
   tripId: string;
   externalMemberId: string;
   payerMemberId: string | null;
+  paymentSource: "member" | "fund";
+  fundId: string | null;
   expenseId: string | null;
   sourceReceiptId: string | null;
   status: "requested" | "purchased" | "settled" | "cancelled";
@@ -242,12 +320,20 @@ export type ProxyPurchase = {
   canCancel: boolean;
   externalMember: { id: string; displayName: string };
   payerMember: { id: string; displayName: string } | null;
+  fund: { id: string; name: string; currency: string } | null;
   expense: { id: string; status: "active" | "voided" } | null;
   items: ProxyPurchaseItem[];
   settlements: Array<{
     id: string;
     amount: string;
     settledAt: string;
+  }>;
+  collections: Array<{
+    id: string;
+    amount: string;
+    settledAt: string;
+    source: "member" | "fund";
+    fundId: string | null;
   }>;
 };
 
@@ -333,6 +419,12 @@ export type TripDashboard = {
   pendingReceipts: number;
   pendingProposals: number;
   upcomingBookings: Booking[];
+  publicFund: {
+    id: string;
+    name: string;
+    currency: string;
+    balance: string;
+  } | null;
 };
 
 export type ApiErrorPayload = {

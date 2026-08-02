@@ -1,10 +1,11 @@
 "use client";
 
-import type { ProxyPurchase, Trip, TripMember } from "@voyage/shared";
+import type { ProxyPurchase, Trip, TripFund, TripMember } from "@voyage/shared";
 import { Plus, Save, ShoppingBag, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { formatMoney } from "../lib/format";
 import { PendingButton } from "./pending-button";
+import { PaymentSourceFields } from "./payment-source-fields";
 
 type FormItem = {
   key: string;
@@ -19,6 +20,7 @@ export function ProxyPurchaseForm({
   trip,
   externalMembers,
   travelers,
+  funds,
   today,
   purchase,
   submitLabel
@@ -27,6 +29,7 @@ export function ProxyPurchaseForm({
   trip: Trip;
   externalMembers: TripMember[];
   travelers: TripMember[];
+  funds: TripFund[];
   today: string;
   purchase?: ProxyPurchase;
   submitLabel: string;
@@ -230,19 +233,12 @@ export function ProxyPurchaseForm({
                 checked={purchaseState === "purchased"}
                 onChange={() => setPurchaseState("purchased")}
               />
-              已購買並墊付
+              已購買並入帳
             </label>
           </div>
           {purchaseState === "purchased" ? (
             <div className="proxy-payment-fields">
-              <label className="field">
-                <span>墊付旅伴</span>
-                <select name="payerMemberId" defaultValue={travelers[0]?.id} required>
-                  {travelers.map((member) => (
-                    <option value={member.id} key={member.id}>{member.displayName}</option>
-                  ))}
-                </select>
-              </label>
+              <PaymentSourceFields travelers={travelers} funds={funds} memberLabel="墊付旅伴" />
               <label className="field">
                 <span>購買日期</span>
                 <input name="purchasedAt" type="date" defaultValue={today} required />

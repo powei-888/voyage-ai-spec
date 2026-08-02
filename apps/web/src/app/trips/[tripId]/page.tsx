@@ -4,6 +4,7 @@ import {
   Bot,
   CalendarClock,
   CreditCard,
+  Landmark,
   MapPin,
   ReceiptText,
   TicketCheck,
@@ -68,6 +69,11 @@ export default async function DashboardPage({ params, searchParams }: PageProps)
           <span><Bot size={17} /> AI 提案</span>
           <strong>{dashboard.pendingProposals}</strong>
           <small>等待決策</small>
+        </article>
+        <article className="metric">
+          <span><Landmark size={17} /> 公費餘額</span>
+          <strong>{dashboard.publicFund ? formatMoney(dashboard.publicFund.balance, dashboard.publicFund.currency) : "尚未建立"}</strong>
+          <small><Link href={`/trips/${tripId}/funds`}>管理公費</Link></small>
         </article>
       </section>
 

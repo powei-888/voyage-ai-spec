@@ -130,3 +130,30 @@
 .check-group input {
   accent-color: var(--teal);
 }
+
+.payment-source-fieldset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 10px 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.payment-source-fieldset legend {
+  grid-column: 1 / -1;
+  color: #475550;
+  font-size: 0.73rem;
+  font-weight: 750;
+}
+
+@media (max-width: 620px) {
+  .payment-source-fieldset {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-source-fieldset legend {
+    grid-column: auto;
+  }
+}

@@ -8,6 +8,7 @@ import {
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
+import { calculateFundCash } from "../funds/fund-calculator";
 import { AI_PROVIDER, AiProvider } from "./ai-provider";
 import { CreateProposalDto } from "./ai-proposals.dto";
 import { assertProposalTransition } from "./proposal-state";
@@ -78,7 +79,7 @@ export class AiProposalsService {
     if (!trip) {
       throw DomainError.notFound("TRIP_NOT_FOUND", "Trip not found.");
     }
-    const [activeExpenses, pendingReceiptCount] = await Promise.all([
+    const [activeExpenses, pendingReceiptCount, publicFund] = await Promise.all([
         this.prisma.expense.findMany({
           where: { tripId, status: "active" },
           select: {
@@ -91,6 +92,13 @@ export class AiProposalsService {
         }),
         this.prisma.receipt.count({
           where: { tripId, ocrStatus: ReceiptStatus.extracted }
+        }),
+        this.prisma.tripFund.findFirst({
+          where: { tripId, currency: trip.baseCurrency },
+          include: {
+            transactions: { select: { type: true, amount: true, voidedAt: true } },
+            expenses: { select: { amount: true, status: true } }
+          }
         })
       ]);
     const categoryTotals = new Map<string, Prisma.Decimal>();
@@ -106,6 +114,19 @@ export class AiProposalsService {
         (categoryTotals.get(expense.category) ?? new Prisma.Decimal(0)).plus(amount)
       );
     }
+    const publicFundBalance = publicFund
+      ? calculateFundCash(
+          publicFund.currency,
+          publicFund.transactions.map((transaction) => ({
+            ...transaction,
+            amount: transaction.amount.toString()
+          })),
+          publicFund.expenses.map((expense) => ({
+            ...expense,
+            amount: expense.amount.toString()
+          }))
+        ).balance
+      : null;
     let draft: Awaited<ReturnType<AiProvider["propose"]>>;
     try {
       draft = await this.provider.propose({
@@ -121,6 +142,7 @@ export class AiProposalsService {
           pendingReceiptCount,
           budgetAmount: trip.budgetAmount?.toString() ?? null,
           expenseTotal: expenseTotal.toString(),
+          publicFundBalance,
           baseCurrency: trip.baseCurrency,
           categoryTotals: [...categoryTotals.entries()].map(([category, amount]) => ({
             category,
