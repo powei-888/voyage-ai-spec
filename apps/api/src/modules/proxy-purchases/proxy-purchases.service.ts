@@ -163,6 +163,18 @@ export class ProxyPurchasesService {
         HttpStatus.UNPROCESSABLE_ENTITY
       );
     }
+    const amountOverrides = new Map(
+      (dto.itemAmounts ?? []).map((item) => [item.index, item.amount])
+    );
+    if (
+      amountOverrides.size !== (dto.itemAmounts?.length ?? 0) ||
+      [...amountOverrides.keys()].some((index) => !indexes.includes(index))
+    ) {
+      throw new DomainError(
+        "INVALID_RECEIPT_ITEM_AMOUNT",
+        "Receipt item allocation amounts do not match the selected items."
+      );
+    }
     const existingExternal = dto.externalMemberId
       ? await this.requireExternalMember(tripId, dto.externalMemberId)
       : null;
@@ -182,9 +194,11 @@ export class ProxyPurchasesService {
           HttpStatus.UNPROCESSABLE_ENTITY
         );
       }
+      const allocatedAmount = amountOverrides.get(sourceReceiptItemIndex) || item.amount;
       let quantity = Number(item.quantity);
       let unitPrice = item.unitPrice;
       if (
+        allocatedAmount !== item.amount ||
         !Number.isInteger(quantity) ||
         quantity < 1 ||
         quantity > 999 ||
@@ -193,15 +207,20 @@ export class ProxyPurchasesService {
           toMinorUnits(item.amount, currency)
       ) {
         quantity = 1;
-        unitPrice = item.amount;
+        unitPrice = allocatedAmount;
+      }
+      const notes = [];
+      if (item.translatedDescription && item.translatedDescription !== item.description) {
+        notes.push(`收據原文：${item.description}`);
+      }
+      if (allocatedAmount !== item.amount) {
+        notes.push(`收據明細：${currency} ${item.amount}；實際分攤：${currency} ${allocatedAmount}`);
       }
       return {
         description: item.translatedDescription || item.description,
         quantity,
         unitPrice,
-        note: item.translatedDescription && item.translatedDescription !== item.description
-          ? `收據原文：${item.description}`
-          : undefined,
+        note: notes.length ? notes.join("；") : undefined,
         sourceReceiptItemIndex
       };
     });

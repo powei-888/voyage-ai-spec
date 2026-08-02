@@ -36,7 +36,7 @@ export function ReceiptProxyImportForm({
       </div>
       <div className="receipt-proxy-select-list">
         {items.map((item, index) => (
-          <label
+          <div
             className={assignments[index] ? "receipt-proxy-item assigned" : "receipt-proxy-item"}
             key={`${item.description}-${index}`}
           >
@@ -47,6 +47,7 @@ export function ReceiptProxyImportForm({
                 type="checkbox"
                 name="itemIndexes"
                 value={index}
+                aria-label={`選擇 ${item.translatedDescription || item.description}`}
                 checked={selected.includes(index)}
                 onChange={(event) => setSelected((current) =>
                   event.target.checked
@@ -59,8 +60,21 @@ export function ReceiptProxyImportForm({
               <strong>{item.translatedDescription || item.description}</strong>
               {item.translatedDescription ? <small>{item.description}</small> : null}
             </span>
-            <b>{currency} {item.amount}</b>
-          </label>
+            {assignments[index] ? (
+              <b>{currency} {item.amount}</b>
+            ) : (
+              <label className="receipt-proxy-amount">
+                <span>分攤金額</span>
+                <input
+                  name={`itemAmount:${index}`}
+                  inputMode="decimal"
+                  defaultValue={item.amount}
+                  disabled={!selected.includes(index)}
+                  required={selected.includes(index)}
+                />
+              </label>
+            )}
+          </div>
         ))}
       </div>
       {available.length > 0 ? (

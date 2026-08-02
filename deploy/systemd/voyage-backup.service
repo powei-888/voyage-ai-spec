@@ -1,0 +1,11 @@
+[Unit]
+Description=Voyage AI database and receipt backup
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/voyage-ai-spec
+EnvironmentFile=%h/.config/voyage-ai/voyage.env
+Environment=UPLOAD_DIR=%h/.local/share/voyage-ai/uploads
+Environment=BACKUP_DIR=%h/.local/share/voyage-ai/backups
+ExecStart=%h/voyage-ai-spec/scripts/voyage-backup.sh

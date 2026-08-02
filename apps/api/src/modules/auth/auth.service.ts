@@ -2,10 +2,13 @@ import { createHash, randomBytes } from "node:crypto";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { DomainError } from "../../common/domain-error";
 import { PrismaService } from "../../infra/database/prisma.service";
-import { LoginDto, RegisterDto } from "./auth.dto";
+import { AuthAttemptLimiterService } from "./auth-attempt-limiter.service";
+import { ChangePasswordDto, LoginDto, RegisterDto } from "./auth.dto";
 import { hashPassword, verifyPassword } from "./password";
 
 const SESSION_DAYS = 30;
+const MAX_USER_SESSIONS = 10;
+const DUMMY_PASSWORD_HASH = `scrypt$${"0".repeat(32)}$${"0".repeat(128)}`;
 const publicUser = {
   id: true,
   email: true,
@@ -15,7 +18,10 @@ const publicUser = {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly attempts: AuthAttemptLimiterService
+  ) {}
 
   async register(dto: RegisterDto) {
     const passwordHash = await hashPassword(dto.password);
@@ -55,19 +61,21 @@ export class AuthService {
     return this.createSession(user);
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ipAddress: string) {
+    this.attempts.assertAllowed(ipAddress, dto.email);
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email }
     });
-    const valid =
-      user?.passwordHash && (await verifyPassword(dto.password, user.passwordHash));
+    const valid = await verifyPassword(dto.password, user?.passwordHash || DUMMY_PASSWORD_HASH);
     if (!user || !valid) {
+      this.attempts.recordFailure(ipAddress, dto.email);
       throw new DomainError(
         "INVALID_CREDENTIALS",
         "Email or password is incorrect.",
         HttpStatus.UNAUTHORIZED
       );
     }
+    this.attempts.reset(ipAddress, dto.email);
     return this.createSession({
       id: user.id,
       email: user.email,
@@ -96,12 +104,51 @@ export class AuthService {
     });
   }
 
+  async logoutAll(userId: string): Promise<{ revokedSessions: number }> {
+    const result = await this.prisma.session.deleteMany({ where: { userId } });
+    return { revokedSessions: result.count };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.passwordHash || !(await verifyPassword(dto.currentPassword, user.passwordHash))) {
+      throw new DomainError(
+        "INVALID_CURRENT_PASSWORD",
+        "Current password is incorrect.",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    if (await verifyPassword(dto.newPassword, user.passwordHash)) {
+      throw new DomainError(
+        "PASSWORD_UNCHANGED",
+        "New password must be different from the current password."
+      );
+    }
+    const passwordHash = await hashPassword(dto.newPassword);
+    const revokedSessions = await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { passwordHash } });
+      return tx.session.deleteMany({ where: { userId } });
+    });
+    return { changed: true, revokedSessions: revokedSessions.count };
+  }
+
   private async createSession(user: {
     id: string;
     email: string;
     displayName: string;
     avatarUrl: string | null;
   }) {
+    const now = new Date();
+    await this.prisma.session.deleteMany({ where: { expiresAt: { lte: now } } });
+    const sessions = await this.prisma.session.findMany({
+      where: { userId: user.id },
+      select: { id: true },
+      orderBy: { createdAt: "desc" }
+    });
+    const excess = sessions.slice(MAX_USER_SESSIONS - 1).map((session) => session.id);
+    if (excess.length > 0) {
+      await this.prisma.session.deleteMany({ where: { id: { in: excess } } });
+    }
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date();
     expiresAt.setUTCDate(expiresAt.getUTCDate() + SESSION_DAYS);

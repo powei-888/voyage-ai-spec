@@ -110,7 +110,15 @@ Production option:
 Upload -> create receipt row -> enqueue OCR job -> worker extracts fields -> update receipt -> notify frontend
 ```
 
-The service interface should support both.
+The implemented production path writes the file before exposing the queued row. A
+single worker claims work with an expiring lease, increments its attempt count, and runs
+local OCR/Qwen serially. Failures return to the queue with exponential backoff until the
+configured limit. An expired processing lease is reclaimable after a crash or restart,
+and lease ownership prevents an older worker from overwriting a newer result.
+
+Operational probes are split into liveness and readiness. Readiness requires PostgreSQL,
+writable upload storage with minimum free space, and readable queue state. Daily backups
+bundle a PostgreSQL custom dump and uploads with SHA-256 verification.
 
 ## AI proposal processing
 

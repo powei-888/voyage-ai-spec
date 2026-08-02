@@ -6,9 +6,7 @@ import { PendingButton } from "../../components/pending-button";
 import { getSessionToken } from "../../lib/session";
 import { loginAction, registerAction } from "../actions/auth-actions";
 
-type PageProps = {
-  searchParams: Promise<{ mode?: string; error?: string }>;
-};
+type PageProps = { searchParams: Promise<{ mode?: string; error?: string; notice?: string }> };
 
 export default async function LoginPage({ searchParams }: PageProps) {
   if (await getSessionToken()) redirect("/");
@@ -27,7 +25,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
           <h1>{registering ? "建立帳號" : "歡迎回來"}</h1>
           <p>{registering ? "建立這台伺服器上的本機帳號。" : "登入後繼續管理你的旅程。"}</p>
         </div>
-        <Notice error={query.error} />
+        <Notice error={query.error} notice={query.notice} />
         <form action={registering ? registerAction : loginAction} className="auth-form">
           {registering ? (
             <label className="field">
@@ -37,11 +35,11 @@ export default async function LoginPage({ searchParams }: PageProps) {
           ) : null}
           <label className="field">
             <span>電子郵件</span>
-            <input name="email" type="email" autoComplete="email" defaultValue={registering ? "" : "demo@voyage.local"} required />
+            <input name="email" type="email" autoComplete="email" required />
           </label>
           <label className="field">
             <span>密碼</span>
-            <input name="password" type="password" autoComplete={registering ? "new-password" : "current-password"} minLength={8} defaultValue={registering ? "" : "voyage-demo"} required />
+            <input name="password" type="password" autoComplete={registering ? "new-password" : "current-password"} minLength={8} required />
           </label>
           <PendingButton className="button button-primary auth-submit" type="submit" pendingLabel="驗證中…">
             {registering ? <UserPlus size={17} /> : <LogIn size={17} />}

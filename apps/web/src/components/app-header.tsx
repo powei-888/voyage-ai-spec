@@ -19,9 +19,9 @@ export async function AppHeader() {
           <Plus size={16} />
           <span>新增旅程</span>
         </Link>
-        <span className="avatar" title={`${user.displayName} · ${user.email}`}>
+        <Link className="avatar" href="/account" title={`${user.displayName} · 帳號安全`} aria-label="帳號安全">
           {user.displayName.slice(0, 1).toUpperCase()}
-        </span>
+        </Link>
         <form action={logoutAction}>
           <button className="icon-button" type="submit" title="登出">
             <LogOut size={16} />

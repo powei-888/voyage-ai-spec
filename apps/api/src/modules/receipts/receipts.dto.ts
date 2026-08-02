@@ -70,6 +70,17 @@ export class UpdateReceiptTranslationsDto {
   items!: ReceiptTranslationItemDto[];
 }
 
+export class ReceiptProxyAmountDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  index!: number;
+
+  @Transform(({ value }) => String(value))
+  @Matches(MONEY)
+  amount!: string;
+}
+
 export class CreateReceiptProxyPurchaseDto {
   @IsOptional()
   @IsString()
@@ -88,6 +99,14 @@ export class CreateReceiptProxyPurchaseDto {
   @IsInt({ each: true })
   @Min(0, { each: true })
   itemIndexes!: number[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => ReceiptProxyAmountDto)
+  itemAmounts?: ReceiptProxyAmountDto[];
 
   @IsOptional()
   @IsString()

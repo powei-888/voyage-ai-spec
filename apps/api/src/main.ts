@@ -11,6 +11,19 @@ async function bootstrap() {
     new FastifyAdapter()
   );
   const port = Number.parseInt(process.env.PORT ?? "3001", 10);
+  const fastify = app.getHttpAdapter().getInstance();
+
+  fastify.addHook("onSend", (_request, reply, payload, done) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Referrer-Policy", "no-referrer");
+    reply.header("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
+    reply.header("Cross-Origin-Resource-Policy", "same-site");
+    if ((process.env.ENABLE_HSTS ?? "false").toLowerCase() === "true") {
+      reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    }
+    done(null, payload);
+  });
 
   await app.register(multipart, {
     limits: { files: 1, fileSize: 8 * 1024 * 1024 }

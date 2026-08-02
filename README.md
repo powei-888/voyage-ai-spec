@@ -109,7 +109,7 @@ Root scripts load `.env` through `dotenv-cli`. If port 5432 is occupied, update 
 
 `AI_PROVIDER=local` and `OCR_PROVIDER=local` are the defaults. AI proposals call the configured Ollama model with the current itinerary, expense, budget, and receipt counts, then store the result as a reviewable proposal. Accepting a proposal records the decision but does not let the model mutate canonical trip data.
 
-Receipt images use EasyOCR text plus Qwen vision. PDF receipts use CUBI parser text plus Qwen. Both paths create editable receipt drafts and require user confirmation before an expense is created.
+Receipt images use EasyOCR text plus Qwen vision. PDF receipts use CUBI parser text plus Qwen. Upload returns after durable local storage, then a PostgreSQL-backed single-worker queue performs extraction. Jobs use leases, exponential retry, a configurable attempt limit, and automatic stale-job recovery after a restart. Both paths create editable receipt drafts and require user confirmation before an expense is created.
 
 Each extracted line item keeps its OCR description and stores the Traditional Chinese
 translation separately with language, status, source, and model metadata. Users can
@@ -124,10 +124,12 @@ Receipt items can also be assigned to an existing or newly created external part
 source-linked orders remain pending until the receipt is confirmed. Receipt confirmation
 creates one canonical expense, adds each assigned order total as an external share, splits
 only the remainder among travelers, and links every source order to that same expense.
+The allocation amount can differ from the OCR line amount for receipt-level discounts or
+coupons; the source amount remains in the order note for review.
 
 `LOCAL_LLM_KEEP_ALIVE=0` unloads Qwen after each request so EasyOCR and the language model can share a 16 GB GPU. Voyage serializes its own local inference work; when EasyOCR is temporarily unavailable, image receipts fall back to Qwen vision. Set either provider to `mock` only for isolated development without the local model services.
 
-The API health response includes the selected AI provider, OCR provider, and model name.
+The API liveness response includes the selected AI provider, OCR provider, and model name. `GET /api/health/ready` additionally checks PostgreSQL, writable upload storage, free disk space, and receipt queue counts; it returns HTTP 503 when a required dependency is unavailable.
 
 ### Persistent LAN service
 
@@ -136,11 +138,11 @@ Production builds can run as systemd user services on ports 3100 and 3101. The A
 ```bash
 npm run build
 mkdir -p ~/.config/systemd/user ~/.config/voyage-ai
-cp deploy/systemd/voyage-api.service deploy/systemd/voyage-web.service ~/.config/systemd/user/
+cp deploy/systemd/voyage-api.service deploy/systemd/voyage-web.service deploy/systemd/voyage-backup.service deploy/systemd/voyage-backup.timer ~/.config/systemd/user/
 cp deploy/systemd/voyage.env.example ~/.config/voyage-ai/voyage.env
 # Replace YOUR_LAN_IP in ~/.config/voyage-ai/voyage.env before starting.
 systemctl --user daemon-reload
-systemctl --user enable --now voyage-api.service voyage-web.service
+systemctl --user enable --now voyage-api.service voyage-web.service voyage-backup.timer
 ```
 
 Enable user lingering once so the services start without an interactive login. This may require administrator authorization:
@@ -149,11 +151,34 @@ Enable user lingering once so the services start without an interactive login. T
 loginctl enable-linger "$USER"
 ```
 
-Check the running deployment with `systemctl --user status voyage-api.service voyage-web.service` and `curl http://127.0.0.1:3101/api/health`.
+Check the deployment with `systemctl --user status voyage-api.service voyage-web.service voyage-backup.timer`, `curl http://127.0.0.1:3101/api/health/live`, and `curl http://127.0.0.1:3101/api/health/ready`.
+
+### Backup and restore
+
+The daily timer writes mode-600 archives to `~/.local/share/voyage-ai/backups`. Each archive contains a PostgreSQL custom dump, receipt uploads, a manifest, and SHA-256 checksums. Thirty-day retention is the default. Scripts use host PostgreSQL client tools when installed and otherwise run the matching tools inside the Compose `postgres` service.
+
+```bash
+systemctl --user start voyage-backup.service
+systemctl --user status voyage-backup.service
+scripts/voyage-verify-backup.sh ~/.local/share/voyage-ai/backups/voyage-ai-TIMESTAMP.tar.gz
+```
+
+Restores are deliberately manual and destructive. Stop both services, export the production environment, verify the archive, then use the explicit flag:
+
+```bash
+systemctl --user stop voyage-api.service voyage-web.service
+set -a
+source ~/.config/voyage-ai/voyage.env
+set +a
+UPLOAD_DIR="$HOME/.local/share/voyage-ai/uploads" scripts/voyage-restore.sh BACKUP.tar.gz --force
+systemctl --user start voyage-api.service voyage-web.service
+```
+
+The previous upload directory is retained with a `before-restore` timestamp until an operator removes it.
 
 ### Local authentication
 
-The API stores scrypt password hashes and opaque, hashed session tokens. The web app keeps the session token in an HttpOnly cookie and forwards it as a Bearer token from server-side requests. Trip-scoped requests still verify membership, and owner-only operations remain protected.
+The API stores scrypt password hashes and opaque, hashed session tokens. The web app keeps the session token in an HttpOnly cookie and forwards it as a Bearer token from server-side requests. Login failures are limited per IP and email, unknown accounts still execute scrypt verification, each account is capped at ten active sessions, and changing a password revokes every session. Trip-scoped requests still verify membership, and owner-only operations remain protected.
 
 Seeded login:
 
@@ -162,7 +187,7 @@ Email: demo@voyage.local
 Password: voyage-demo
 ```
 
-Change `DEMO_USER_PASSWORD` before seeding a shared private deployment. Keep `ALLOW_INSECURE_DEMO_AUTH=false`; the fallback header identity exists only for isolated API development.
+Change `DEMO_USER_PASSWORD` before seeding a shared private deployment. The login form never pre-fills demo credentials. Keep `ALLOW_INSECURE_DEMO_AUTH=false`; the fallback header identity exists only for isolated API development. Enable `COOKIE_SECURE` and `ENABLE_HSTS` only after terminating HTTPS at a trusted reverse proxy.
 
 ### Useful commands
 
@@ -185,15 +210,16 @@ npm run test
 npm run build
 ```
 
-API tests cover health, password hashing, deterministic equal and custom splitting, payer exclusion, rounding, multi-item proxy-purchase totals, canonical purchase expenses, partial collections, external receivables, completed repayments, cross-day event movement, voided expenses, receipt line-item normalization, receipt confirmation idempotency, and AI proposal state transitions. Web tests cover date, money, and enum formatting.
+API tests cover liveness/readiness, password hashing and replacement, login limiting, session revocation, deterministic splitting, payer exclusion, rounding, multi-item proxy-purchase totals, adjusted receipt allocations, canonical purchase expenses, partial collections, external receivables, completed repayments, cross-day event movement, voided expenses, OCR queue success/retry/exhaustion, receipt confirmation idempotency, and AI proposal state transitions. Web tests cover date, money, and enum formatting.
 
 ### Main API routes
 
 All endpoints use the `/api` prefix and return `{ "data": ..., "meta": ... }` or a structured `{ "error": ... }` response.
 
 ```text
-POST            /api/auth/register|login|logout
+POST            /api/auth/register|login|logout|logout-all|change-password
 GET             /api/auth/me
+GET             /api/health|health/live|health/ready
 GET|POST        /api/trips
 GET|PATCH       /api/trips/:tripId
 POST            /api/trips/:tripId/archive
@@ -209,6 +235,7 @@ PATCH|DELETE    /api/trips/:tripId/proxy-purchases/:purchaseId
 POST            /api/trips/:tripId/proxy-purchases/:purchaseId/confirm
 GET|POST        /api/trips/:tripId/receipts
 PATCH|DELETE    /api/trips/:tripId/receipts/:receiptId
+POST            /api/trips/:tripId/receipts/:receiptId/retry
 POST            /api/trips/:tripId/receipts/:receiptId/translate
 PATCH           /api/trips/:tripId/receipts/:receiptId/translations
 POST            /api/trips/:tripId/receipts/:receiptId/proxy-purchases

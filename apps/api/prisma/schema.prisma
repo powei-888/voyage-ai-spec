@@ -263,6 +263,13 @@ model Receipt {
   ocrStatus           ReceiptStatus @default(pending)
   extractedJson       Json?
   confidenceScore     Decimal?
+  ocrAttemptCount     Int           @default(0)
+  ocrMaxAttempts      Int           @default(3)
+  ocrNextAttemptAt    DateTime      @default(now())
+  ocrStartedAt        DateTime?
+  ocrCompletedAt      DateTime?
+  ocrLeaseExpiresAt   DateTime?
+  ocrLastError        String?
   confirmedByMemberId String?
   confirmedAt         DateTime?
   createdAt           DateTime      @default(now())
@@ -278,6 +285,8 @@ model Receipt {
 
   @@index([tripId])
   @@index([ocrStatus])
+  @@index([ocrStatus, ocrNextAttemptAt])
+  @@index([ocrLeaseExpiresAt])
   @@index([uploadedByMemberId])
   @@index([confirmedByMemberId])
 }

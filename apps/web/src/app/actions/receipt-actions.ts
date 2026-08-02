@@ -13,7 +13,21 @@ export async function uploadReceiptAction(
   try {
     await apiUpload(`/trips/${tripId}/receipts`, formData);
     revalidatePath(`/trips/${tripId}`);
-    redirect(`${path}?notice=${encodeURIComponent("收據辨識完成，請確認內容")}`);
+    redirect(`${path}?notice=${encodeURIComponent("收據已加入辨識佇列")}`);
+  } catch (error) {
+    redirectWithError(path, error);
+  }
+}
+
+export async function retryReceiptAction(
+  tripId: string,
+  receiptId: string
+): Promise<void> {
+  const path = `/trips/${tripId}/receipts`;
+  try {
+    await apiSend(`/trips/${tripId}/receipts/${receiptId}/retry`, "POST");
+    revalidatePath(path);
+    redirect(`${path}?notice=${encodeURIComponent("收據已重新排入辨識")}`);
   } catch (error) {
     redirectWithError(path, error);
   }
@@ -121,10 +135,15 @@ export async function createReceiptProxyPurchaseAction(
 ): Promise<void> {
   const path = `/trips/${tripId}/receipts`;
   try {
+    const itemIndexes = formStrings(formData, "itemIndexes").map(Number);
     await apiSend(`/trips/${tripId}/receipts/${receiptId}/proxy-purchases`, "POST", {
       externalMemberId: optionalString(formData, "externalMemberId"),
       newExternalName: optionalString(formData, "newExternalName"),
-      itemIndexes: formStrings(formData, "itemIndexes").map(Number),
+      itemIndexes,
+      itemAmounts: itemIndexes.map((index) => ({
+        index,
+        amount: formString(formData, `itemAmount:${index}`)
+      })),
       note: optionalString(formData, "note")
     });
     revalidatePath(path);

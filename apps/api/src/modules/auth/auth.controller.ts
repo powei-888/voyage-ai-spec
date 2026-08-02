@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Headers, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Post, Req } from "@nestjs/common";
+import type { FastifyRequest } from "fastify";
 import { ok } from "../../common/api-response";
 import { CurrentUserId } from "../../common/current-user.decorator";
 import { PrismaService } from "../../infra/database/prisma.service";
-import { LoginDto, RegisterDto } from "./auth.dto";
+import { ChangePasswordDto, LoginDto, RegisterDto } from "./auth.dto";
 import { AuthService } from "./auth.service";
 import { Public } from "./public.decorator";
 
@@ -21,8 +22,8 @@ export class AuthController {
 
   @Public()
   @Post("login")
-  async login(@Body() dto: LoginDto) {
-    return ok(await this.auth.login(dto));
+  async login(@Body() dto: LoginDto, @Req() request: FastifyRequest) {
+    return ok(await this.auth.login(dto, request.ip));
   }
 
   @Get("me")
@@ -42,5 +43,18 @@ export class AuthController {
       : "";
     if (token) await this.auth.logout(token);
     return ok({ loggedOut: true });
+  }
+
+  @Post("logout-all")
+  async logoutAll(@CurrentUserId() userId: string) {
+    return ok(await this.auth.logoutAll(userId));
+  }
+
+  @Post("change-password")
+  async changePassword(
+    @CurrentUserId() userId: string,
+    @Body() dto: ChangePasswordDto
+  ) {
+    return ok(await this.auth.changePassword(userId, dto));
   }
 }

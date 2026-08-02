@@ -80,3 +80,46 @@
   color: var(--teal);
   font-weight: 700;
 }
+
+.account-page {
+  width: min(820px, calc(100% - 36px));
+}
+
+.account-identity {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.account-identity > div {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 2px 9px;
+  padding: 17px 19px;
+  background: var(--surface);
+}
+
+.account-identity svg {
+  grid-row: 1 / 3;
+  align-self: center;
+  color: var(--teal);
+}
+
+.account-identity span {
+  color: var(--faint);
+  font-size: 0.68rem;
+}
+
+.account-identity strong {
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 650px) {
+  .account-identity {
+    grid-template-columns: 1fr;
+  }
+}

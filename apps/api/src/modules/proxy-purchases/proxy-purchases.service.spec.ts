@@ -113,7 +113,7 @@ describe("ProxyPurchasesService", () => {
       .rejects.toThrow("Delete recorded collections before cancelling this proxy purchase.");
   });
 
-  it("creates a pending order from translated receipt items with source indexes", async () => {
+  it("creates a pending order from translated receipt items with adjusted allocations", async () => {
     const external = { id: "external-1", displayName: "阿姨" };
     const purchaseCreate = jest.fn().mockImplementation(({ data }) => ({
       id: "proxy-receipt-1",
@@ -199,6 +199,10 @@ describe("ProxyPurchasesService", () => {
       {
         newExternalName: "阿姨",
         itemIndexes: [0, 1],
+        itemAmounts: [
+          { index: 0, amount: "650" },
+          { index: 1, amount: "400" }
+        ],
         note: "日本藥妝"
       }
     );
@@ -206,7 +210,7 @@ describe("ProxyPurchasesService", () => {
     expect(result).toMatchObject({
       status: "requested",
       sourceReceiptId: "receipt-1",
-      totalAmount: "1120",
+      totalAmount: "1050",
       outstandingAmount: "0"
     });
     expect(result.items).toEqual([
@@ -214,12 +218,14 @@ describe("ProxyPurchasesService", () => {
         description: "樂敦 C Cube 眼藥水",
         sourceReceiptId: "receipt-1",
         sourceReceiptItemIndex: 0,
-        amount: "700"
+        amount: "650",
+        note: expect.stringContaining("收據明細：JPY 700；實際分攤：JPY 650")
       }),
       expect.objectContaining({
         description: "抹茶餅乾",
         sourceReceiptItemIndex: 1,
-        amount: "420"
+        amount: "400",
+        note: expect.stringContaining("收據明細：JPY 420；實際分攤：JPY 400")
       })
     ]);
   });

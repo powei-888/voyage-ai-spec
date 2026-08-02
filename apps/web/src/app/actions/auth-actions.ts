@@ -41,3 +41,28 @@ export async function logoutAction(): Promise<void> {
     redirect("/login");
   }
 }
+
+export async function changePasswordAction(formData: FormData): Promise<void> {
+  const currentPassword = formString(formData, "currentPassword");
+  const newPassword = formString(formData, "newPassword");
+  const confirmPassword = formString(formData, "confirmPassword");
+  if (newPassword !== confirmPassword) {
+    redirect(`/account?error=${encodeURIComponent("新密碼與確認密碼不一致。")}`);
+  }
+  try {
+    await apiSend("/auth/change-password", "POST", { currentPassword, newPassword });
+    await clearSession();
+    redirect(`/login?notice=${encodeURIComponent("密碼已更新，請重新登入。")}`);
+  } catch (error) {
+    redirectWithError("/account", error);
+  }
+}
+
+export async function logoutAllAction(): Promise<void> {
+  try {
+    await apiSend("/auth/logout-all", "POST");
+  } finally {
+    await clearSession();
+    redirect(`/login?notice=${encodeURIComponent("所有裝置都已登出。")}`);
+  }
+}

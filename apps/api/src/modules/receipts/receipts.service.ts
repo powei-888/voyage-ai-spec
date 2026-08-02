@@ -4,7 +4,6 @@ import { randomUUID } from "node:crypto";
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
-import { OCR_PROVIDER, OcrProvider } from "./ocr-provider";
 import { extractionWithNormalizedItems } from "./receipt-line-items";
 import { RECEIPT_STORAGE, ReceiptStorage } from "./receipt-storage";
 import { UpdateReceiptDraftDto } from "./receipts.dto";
@@ -38,7 +37,6 @@ export class ReceiptsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: TripAccessService,
-    @Inject(OCR_PROVIDER) private readonly ocr: OcrProvider,
     @Inject(RECEIPT_STORAGE) private readonly storage: ReceiptStorage
   ) {}
 
@@ -84,7 +82,8 @@ export class ReceiptsService {
         imageUrl: "pending://upload",
         imageOriginalName: file.originalName,
         imageMimeType: file.mimeType,
-        ocrStatus: ReceiptStatus.pending
+        ocrStatus: ReceiptStatus.pending,
+        ocrMaxAttempts: this.maxAttempts()
       }
     });
 
@@ -96,23 +95,12 @@ export class ReceiptsService {
         originalName: file.originalName,
         buffer: file.buffer
       });
-      await this.prisma.receipt.update({
-        where: { id: receiptId },
-        data: { imageUrl: storageKey, ocrStatus: ReceiptStatus.processing }
-      });
-      const extraction = await this.ocr.extract({
-        buffer: file.buffer,
-        originalName: file.originalName,
-        mimeType: file.mimeType,
-        fallbackCurrency: trip.baseCurrency,
-        fallbackDate: trip.startDate.toISOString().slice(0, 10)
-      });
       const receipt = await this.prisma.receipt.update({
         where: { id: receiptId },
         data: {
-          ocrStatus: ReceiptStatus.extracted,
-          extractedJson: extraction,
-          confidenceScore: extraction.confidenceScore.toFixed(2)
+          imageUrl: storageKey,
+          ocrStatus: ReceiptStatus.pending,
+          ocrNextAttemptAt: new Date()
         },
         include: receiptInclude
       });
@@ -122,16 +110,44 @@ export class ReceiptsService {
         where: { id: receiptId },
         data: {
           imageUrl: storageKey || "failed://upload",
-          ocrStatus: ReceiptStatus.failed
+          ocrStatus: ReceiptStatus.failed,
+          ocrLastError: error instanceof Error ? error.message.slice(0, 1000) : "Unknown upload error"
         }
       });
       throw new DomainError(
-        "RECEIPT_OCR_FAILED",
-        "Receipt extraction failed.",
+        "RECEIPT_UPLOAD_FAILED",
+        "Receipt upload failed before OCR could be queued.",
         HttpStatus.UNPROCESSABLE_ENTITY,
         { cause: error instanceof Error ? error.message : "Unknown error" }
       );
     }
+  }
+
+  async retry(userId: string, tripId: string, receiptId: string) {
+    await this.access.requireMember(tripId, userId);
+    const receipt = await this.prisma.receipt.findFirst({ where: { id: receiptId, tripId } });
+    if (!receipt) throw DomainError.notFound("RECEIPT_NOT_FOUND", "Receipt not found.");
+    if (receipt.ocrStatus !== ReceiptStatus.failed || !receipt.imageUrl.startsWith("local://")) {
+      throw new DomainError(
+        "RECEIPT_RETRY_NOT_ALLOWED",
+        "Only failed stored receipts can be queued again.",
+        HttpStatus.CONFLICT
+      );
+    }
+    const updated = await this.prisma.receipt.update({
+      where: { id: receiptId },
+      data: {
+        ocrStatus: ReceiptStatus.pending,
+        ocrAttemptCount: 0,
+        ocrNextAttemptAt: new Date(),
+        ocrStartedAt: null,
+        ocrCompletedAt: null,
+        ocrLeaseExpiresAt: null,
+        ocrLastError: null
+      },
+      include: receiptInclude
+    });
+    return this.present(updated);
   }
 
   async updateDraft(
@@ -225,6 +241,11 @@ export class ReceiptsService {
     if (file.buffer.length === 0 || file.buffer.length > 8 * 1024 * 1024) {
       throw new DomainError("INVALID_RECEIPT_SIZE", "Receipt file must be between 1 byte and 8 MB.");
     }
+  }
+
+  private maxAttempts(): number {
+    const value = Number.parseInt(process.env.OCR_MAX_ATTEMPTS || "3", 10);
+    return Number.isFinite(value) ? Math.min(10, Math.max(1, value)) : 3;
   }
 
   private present<T extends { id: string; tripId: string }>(receipt: T): T & { imageUrl: string } {

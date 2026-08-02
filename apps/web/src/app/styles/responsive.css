@@ -275,4 +275,23 @@
   .danger-zone .button {
     width: 100%;
   }
+
+  .receipt-queue-list article {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .queue-copy {
+    flex-basis: calc(100% - 50px);
+  }
+
+  .queue-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .receipt-proxy-amount {
+    grid-column: 2;
+    width: 100%;
+  }
 }

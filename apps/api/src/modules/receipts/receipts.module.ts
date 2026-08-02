@@ -6,6 +6,7 @@ import { LocalReceiptStorageService } from "./local-receipt-storage.service";
 import { MockOcrProvider } from "./mock-ocr.provider";
 import { OCR_PROVIDER, OcrProvider } from "./ocr-provider";
 import { ReceiptConfirmationService } from "./receipt-confirmation.service";
+import { ReceiptProcessingService } from "./receipt-processing.service";
 import { ReceiptTranslationService } from "./receipt-translation.service";
 import { RECEIPT_STORAGE } from "./receipt-storage";
 import { ReceiptsController } from "./receipts.controller";
@@ -17,6 +18,7 @@ import { ReceiptsService } from "./receipts.service";
   providers: [
     ReceiptsService,
     ReceiptConfirmationService,
+    ReceiptProcessingService,
     ReceiptTranslationService,
     LocalOcrProvider,
     MockOcrProvider,

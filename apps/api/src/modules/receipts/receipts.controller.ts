@@ -89,6 +89,15 @@ export class ReceiptsController {
     return ok(await this.translation.translate(userId, tripId, receiptId));
   }
 
+  @Post(":receiptId/retry")
+  async retry(
+    @CurrentUserId() userId: string,
+    @Param("tripId") tripId: string,
+    @Param("receiptId") receiptId: string
+  ) {
+    return ok(await this.receipts.retry(userId, tripId, receiptId));
+  }
+
   @Patch(":receiptId/translations")
   async updateTranslations(
     @CurrentUserId() userId: string,

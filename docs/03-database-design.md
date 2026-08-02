@@ -173,6 +173,13 @@ Fields:
 - ocr_status: enum pending / processing / extracted / confirmed / failed
 - extracted_json: jsonb nullable
 - confidence_score: decimal nullable
+- ocr_attempt_count: non-negative integer
+- ocr_max_attempts: integer from 1 to 10
+- ocr_next_attempt_at: timestamp
+- ocr_started_at: timestamp nullable
+- ocr_completed_at: timestamp nullable
+- ocr_lease_expires_at: timestamp nullable
+- ocr_last_error: text nullable
 - confirmed_by_member_id: uuid nullable
 - confirmed_at: timestamp nullable
 - created_at: timestamp
@@ -182,6 +189,9 @@ Important:
 
 A receipt can exist without an expense. Expense creation happens only after confirmation.
 
+Workers claim rows optimistically by `id + updated_at`. Completion and failure updates
+also require the exact lease timestamp so an expired worker cannot overwrite a newer run.
+
 Each `extracted_json.items[]` entry stores the immutable OCR `description`,
 `translatedDescription`, `originalLanguage`, `translationStatus`,
 `translationSource`, and `translationModel` alongside quantity and amount fields.
@@ -190,6 +200,8 @@ Indexes:
 
 - trip_id
 - ocr_status
+- ocr_status + ocr_next_attempt_at
+- ocr_lease_expires_at
 
 ### expenses
 

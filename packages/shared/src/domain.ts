@@ -215,6 +215,13 @@ export type Receipt = {
   ocrStatus: "pending" | "processing" | "extracted" | "confirmed" | "failed";
   extractedJson: ReceiptExtraction | null;
   confidenceScore: string | null;
+  ocrAttemptCount: number;
+  ocrMaxAttempts: number;
+  ocrNextAttemptAt: string;
+  ocrStartedAt: string | null;
+  ocrCompletedAt: string | null;
+  ocrLeaseExpiresAt: string | null;
+  ocrLastError: string | null;
   confirmedAt: string | null;
   createdAt: string;
   uploadedByMember: { id: string; displayName: string } | null;

@@ -161,6 +161,7 @@ Confirming a pending order creates one custom-split shopping expense. Collection
 ```http
 POST /api/trips/:tripId/receipts
 GET /api/trips/:tripId/receipts/:receiptId
+POST /api/trips/:tripId/receipts/:receiptId/retry
 POST /api/trips/:tripId/receipts/:receiptId/translate
 PATCH /api/trips/:tripId/receipts/:receiptId/translations
 POST /api/trips/:tripId/receipts/:receiptId/proxy-purchases
@@ -168,6 +169,10 @@ POST /api/trips/:tripId/receipts/:receiptId/confirm
 ```
 
 Upload uses multipart form data.
+
+Upload returns a `pending` record after durable storage. Clients poll while `ocrStatus`
+is `pending` or `processing`. A failed job includes attempt metadata and can be queued
+again with the retry endpoint.
 
 Manual translation correction:
 
@@ -185,12 +190,17 @@ Assign extracted items to one proxy-purchase party:
 {
   "externalMemberId": "external-a",
   "itemIndexes": [0, 2],
+  "itemAmounts": [
+    { "index": 0, "amount": "620" },
+    { "index": 2, "amount": "300" }
+  ],
   "note": "日本藥妝"
 }
 ```
 
 The item indexes are resolved from stored extraction data. Duplicate assignments are
-rejected. These orders remain requested until receipt confirmation.
+rejected. Optional allocation amounts handle receipt-level discounts without replacing
+the OCR amount. These orders remain requested until receipt confirmation.
 
 Confirm receipt request:
 
@@ -206,6 +216,18 @@ Confirm receipt request:
   "participantMemberIds": ["member-a", "member-b"]
 }
 ```
+
+## Operations and account security
+
+```http
+GET  /api/health/live
+GET  /api/health/ready
+POST /api/auth/change-password
+POST /api/auth/logout-all
+```
+
+Readiness returns HTTP 503 when PostgreSQL, upload storage, disk capacity, or queue reads
+are unavailable. Changing a password revokes all active sessions.
 
 ## Bookings
 
