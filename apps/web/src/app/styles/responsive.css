@@ -194,6 +194,37 @@
     flex-direction: column;
   }
 
+  .receipt-translation-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .receipt-translation-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0;
+  }
+
+  .receipt-recipient-fieldset,
+  .receipt-proxy-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .receipt-proxy-summary small {
+    grid-column: auto;
+  }
+
+  .receipt-proxy-item,
+  .receipt-proxy-item.assigned {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 8px 0;
+  }
+
+  .receipt-proxy-item b {
+    grid-column: 2;
+  }
+
   .event-row-time {
     width: 54px;
     flex-basis: 54px;

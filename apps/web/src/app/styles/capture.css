@@ -93,6 +93,235 @@
   padding: 20px;
 }
 
+.receipt-line-workspace {
+  margin: 18px 0 22px;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.receipt-workspace-heading,
+.receipt-workspace-heading > span,
+.receipt-workspace-actions,
+.receipt-confidence-warning,
+.receipt-proxy-complete {
+  display: flex;
+  align-items: center;
+}
+
+.receipt-workspace-heading {
+  min-height: 50px;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.receipt-workspace-heading > span {
+  gap: 7px;
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.receipt-workspace-heading small {
+  color: var(--faint);
+  font-size: 0.67rem;
+}
+
+.receipt-confidence-warning {
+  gap: 7px;
+  padding: 9px 11px;
+  border-left: 3px solid var(--gold);
+  background: var(--gold-soft);
+  color: #755300;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.receipt-translation-list {
+  border-top: 1px solid var(--line);
+}
+
+.receipt-translation-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.9fr) minmax(170px, 1.1fr) minmax(92px, auto);
+  gap: 12px;
+  align-items: end;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.receipt-translation-copy,
+.receipt-translation-input,
+.receipt-translation-meta {
+  min-width: 0;
+}
+
+.receipt-translation-copy strong,
+.receipt-translation-copy small,
+.receipt-translation-input > span {
+  display: block;
+}
+
+.receipt-original-label,
+.receipt-translation-input > span {
+  margin-bottom: 3px;
+  color: var(--faint);
+  font-size: 0.61rem;
+  font-weight: 750;
+}
+
+.receipt-translation-copy strong {
+  overflow-wrap: anywhere;
+  font-size: 0.73rem;
+}
+
+.receipt-translation-copy small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.63rem;
+}
+
+.receipt-translation-input input {
+  width: 100%;
+}
+
+.receipt-translation-meta {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  padding-bottom: 10px;
+}
+
+.receipt-translation-meta b {
+  font-size: 0.72rem;
+}
+
+.translation-status {
+  padding: 3px 6px;
+  background: #eef2f1;
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.translation-status.status-translated {
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+}
+
+.translation-status.status-failed {
+  background: var(--coral-soft);
+  color: #8b3f36;
+}
+
+.receipt-workspace-actions {
+  justify-content: flex-end;
+  padding: 10px 0 14px;
+}
+
+.receipt-proxy-form {
+  padding: 12px 0 16px;
+  border-top: 1px solid var(--line-strong);
+}
+
+.receipt-proxy-select-list {
+  border-top: 1px solid var(--line);
+}
+
+.receipt-proxy-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.receipt-proxy-item.assigned {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  color: var(--muted);
+  cursor: default;
+}
+
+.receipt-proxy-item > span:not(.status-pill),
+.receipt-proxy-item strong,
+.receipt-proxy-item small {
+  display: block;
+  min-width: 0;
+}
+
+.receipt-proxy-item strong {
+  overflow-wrap: anywhere;
+  font-size: 0.72rem;
+}
+
+.receipt-proxy-item small {
+  color: var(--faint);
+  font-size: 0.62rem;
+}
+
+.receipt-proxy-item b {
+  font-size: 0.7rem;
+}
+
+.receipt-recipient-fieldset {
+  display: grid;
+  grid-template-columns: minmax(160px, auto) minmax(160px, 1fr);
+  gap: 10px;
+  align-items: end;
+  margin: 13px 0 10px;
+  padding: 0;
+  border: 0;
+}
+
+.receipt-recipient-fieldset legend {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.67rem;
+  font-weight: 750;
+}
+
+.receipt-recipient-fieldset select,
+.receipt-recipient-fieldset > input {
+  width: 100%;
+}
+
+.receipt-proxy-form > .field {
+  margin-bottom: 10px;
+}
+
+.receipt-proxy-complete {
+  gap: 7px;
+  min-height: 52px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line-strong);
+  color: var(--teal-dark);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.receipt-proxy-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 11px 12px;
+  border-left: 3px solid var(--teal);
+  background: var(--teal-soft);
+}
+
+.receipt-proxy-summary span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.72rem;
+}
+
+.receipt-proxy-summary small {
+  grid-column: 1 / -1;
+  color: var(--teal-dark);
+  font-size: 0.64rem;
+}
+
 .receipt-items {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);

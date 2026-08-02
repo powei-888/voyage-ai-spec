@@ -161,10 +161,36 @@ Confirming a pending order creates one custom-split shopping expense. Collection
 ```http
 POST /api/trips/:tripId/receipts
 GET /api/trips/:tripId/receipts/:receiptId
+POST /api/trips/:tripId/receipts/:receiptId/translate
+PATCH /api/trips/:tripId/receipts/:receiptId/translations
+POST /api/trips/:tripId/receipts/:receiptId/proxy-purchases
 POST /api/trips/:tripId/receipts/:receiptId/confirm
 ```
 
 Upload uses multipart form data.
+
+Manual translation correction:
+
+```json
+{
+  "items": [
+    { "index": 0, "translatedDescription": "樂敦 C Cube 眼藥水" }
+  ]
+}
+```
+
+Assign extracted items to one proxy-purchase party:
+
+```json
+{
+  "externalMemberId": "external-a",
+  "itemIndexes": [0, 2],
+  "note": "日本藥妝"
+}
+```
+
+The item indexes are resolved from stored extraction data. Duplicate assignments are
+rejected. These orders remain requested until receipt confirmation.
 
 Confirm receipt request:
 

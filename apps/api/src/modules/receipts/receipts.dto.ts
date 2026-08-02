@@ -1,13 +1,20 @@
-import { Transform } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import { ExpenseCategory } from "@prisma/client";
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Length,
   Matches,
-  MaxLength
+  MaxLength,
+  Min,
+  ValidateNested
 } from "class-validator";
 import { CreateExpenseDto } from "../expenses/expenses.dto";
 
@@ -40,4 +47,50 @@ export class UpdateReceiptDraftDto {
   @IsOptional()
   @IsEnum(ExpenseCategory)
   category?: ExpenseCategory;
+}
+
+export class ReceiptTranslationItemDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  index!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(160)
+  translatedDescription!: string;
+}
+
+export class UpdateReceiptTranslationsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => ReceiptTranslationItemDto)
+  items!: ReceiptTranslationItemDto[];
+}
+
+export class CreateReceiptProxyPurchaseDto {
+  @IsOptional()
+  @IsString()
+  externalMemberId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  newExternalName?: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(40)
+  @ArrayUnique()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  itemIndexes!: number[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }

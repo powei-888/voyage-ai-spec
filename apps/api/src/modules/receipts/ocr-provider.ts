@@ -2,6 +2,11 @@ import { ExpenseCategory } from "@prisma/client";
 
 export type ReceiptLineItem = {
   description: string;
+  translatedDescription: string | null;
+  originalLanguage: string | null;
+  translationStatus: "pending" | "translated" | "failed";
+  translationSource: "local_ai" | "manual" | null;
+  translationModel: string | null;
   quantity: string | null;
   unitPrice: string | null;
   amount: string;

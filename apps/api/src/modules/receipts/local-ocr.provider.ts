@@ -42,7 +42,7 @@ function normalizeOptionalNumber(value: unknown): string | null {
   return match[0];
 }
 
-function normalizeLineItems(value: unknown): ReceiptLineItem[] {
+function normalizeLineItems(value: unknown, model: string): ReceiptLineItem[] {
   if (!Array.isArray(value)) return [];
   const items: ReceiptLineItem[] = [];
   for (const candidate of value.slice(0, 40)) {
@@ -52,8 +52,20 @@ function normalizeLineItems(value: unknown): ReceiptLineItem[] {
       typeof raw.description === "string" ? raw.description.trim().slice(0, 160) : "";
     const amount = normalizeAmount(raw.amount);
     if (!description || amount === "0") continue;
+    const translatedDescription =
+      typeof raw.translatedDescription === "string" && raw.translatedDescription.trim()
+        ? raw.translatedDescription.trim().slice(0, 160)
+        : null;
     items.push({
       description,
+      translatedDescription,
+      originalLanguage:
+        typeof raw.originalLanguage === "string" && raw.originalLanguage.trim()
+          ? raw.originalLanguage.trim().slice(0, 24)
+          : null,
+      translationStatus: translatedDescription ? "translated" : "pending",
+      translationSource: translatedDescription ? "local_ai" : null,
+      translationModel: translatedDescription ? model : null,
       quantity: normalizeOptionalNumber(raw.quantity),
       unitPrice: normalizeOptionalNumber(raw.unitPrice),
       amount
@@ -134,7 +146,9 @@ export class LocalOcrProvider implements OcrProvider {
           "優先選擇實際應付或總計金額，不要選小計、稅額、找零或單項價格。",
           "只輸出 JSON：merchant 字串、amount 正數字串、currency 三碼、date YYYY-MM-DD、",
           "category 必須是 food/hotel/transport/shopping/ticket/activity/other、confidenceScore 0 到 1、",
-          "items 陣列，每項含 description、quantity、unitPrice、amount；items 只列商品或服務，不列小計、總計、付款與找零。",
+          "items 陣列，每項含 description 原文、translatedDescription 繁體中文商品名、originalLanguage 語言碼、quantity、unitPrice、amount。",
+          "description 必須保留收據上的原始商品文字，不可用翻譯覆蓋；品牌、型號與商品編號需保留。",
+          "items 只列商品或服務，不列小計、總計、付款與找零。",
           "看不清楚的欄位使用提示中的 fallback，不得猜測不存在的商家或金額。"
         ].join("\n"),
         prompt: JSON.stringify({
@@ -166,7 +180,7 @@ export class LocalOcrProvider implements OcrProvider {
           amount,
           ocrConfidence
         ),
-        items: normalizeLineItems(response.items)
+        items: normalizeLineItems(response.items, this.ollama.model)
       };
     });
   }

@@ -14,9 +14,16 @@ import type { MultipartFile } from "@fastify/multipart";
 import { ok } from "../../common/api-response";
 import { CurrentUserId } from "../../common/current-user.decorator";
 import { DomainError } from "../../common/domain-error";
+import { ProxyPurchasesService } from "../proxy-purchases/proxy-purchases.service";
 import { ReceiptConfirmationService } from "./receipt-confirmation.service";
 import { inlineReceiptContentDisposition } from "./receipt-content-disposition";
-import { ConfirmReceiptDto, UpdateReceiptDraftDto } from "./receipts.dto";
+import { ReceiptTranslationService } from "./receipt-translation.service";
+import {
+  ConfirmReceiptDto,
+  CreateReceiptProxyPurchaseDto,
+  UpdateReceiptDraftDto,
+  UpdateReceiptTranslationsDto
+} from "./receipts.dto";
 import { ReceiptsService } from "./receipts.service";
 
 type MultipartRequest = {
@@ -31,7 +38,9 @@ type HeaderReply = {
 export class ReceiptsController {
   constructor(
     private readonly receipts: ReceiptsService,
-    private readonly confirmation: ReceiptConfirmationService
+    private readonly confirmation: ReceiptConfirmationService,
+    private readonly translation: ReceiptTranslationService,
+    private readonly proxyPurchases: ProxyPurchasesService
   ) {}
 
   @Get()
@@ -69,6 +78,37 @@ export class ReceiptsController {
     @Body() dto: UpdateReceiptDraftDto
   ) {
     return ok(await this.receipts.updateDraft(userId, tripId, receiptId, dto));
+  }
+
+  @Post(":receiptId/translate")
+  async translate(
+    @CurrentUserId() userId: string,
+    @Param("tripId") tripId: string,
+    @Param("receiptId") receiptId: string
+  ) {
+    return ok(await this.translation.translate(userId, tripId, receiptId));
+  }
+
+  @Patch(":receiptId/translations")
+  async updateTranslations(
+    @CurrentUserId() userId: string,
+    @Param("tripId") tripId: string,
+    @Param("receiptId") receiptId: string,
+    @Body() dto: UpdateReceiptTranslationsDto
+  ) {
+    return ok(await this.translation.updateManual(userId, tripId, receiptId, dto));
+  }
+
+  @Post(":receiptId/proxy-purchases")
+  async createProxyPurchase(
+    @CurrentUserId() userId: string,
+    @Param("tripId") tripId: string,
+    @Param("receiptId") receiptId: string,
+    @Body() dto: CreateReceiptProxyPurchaseDto
+  ) {
+    return ok(
+      await this.proxyPurchases.createFromReceipt(userId, tripId, receiptId, dto)
+    );
   }
 
   @Delete(":receiptId")

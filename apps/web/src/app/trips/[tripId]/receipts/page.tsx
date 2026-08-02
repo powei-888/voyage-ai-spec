@@ -30,7 +30,7 @@ export default async function ReceiptsPage({ params, searchParams }: PageProps) 
       <PageHeading
         eyebrow="收據擷取"
         title="收據"
-        description="先確認辨識結果，再建立正式支出紀錄。"
+        description="核對原文與繁中翻譯，指派代購明細後再建立正式支出。"
         actions={<a className="button button-primary" href="#upload"><Upload size={17} /> 上傳收據</a>}
       />
       <Notice error={query.error} notice={query.notice} />
@@ -58,7 +58,7 @@ export default async function ReceiptsPage({ params, searchParams }: PageProps) 
       </section>
 
       <section className="form-panel upload-panel" id="upload">
-        <div className="section-heading"><div><p className="eyebrow">地端 OCR + Qwen</p><h2>上傳收據</h2></div></div>
+        <div className="section-heading"><div><p className="eyebrow">地端 OCR + Qwen 翻譯</p><h2>上傳收據</h2></div></div>
         <form action={uploadReceiptAction.bind(null, tripId)} className="upload-form">
           <label className="file-drop">
             <Upload size={24} />

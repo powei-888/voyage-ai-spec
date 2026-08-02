@@ -103,6 +103,8 @@
 .proxy-item-row strong { overflow-wrap: anywhere; }
 .proxy-item-row small { color: var(--muted); font-size: 0.68rem; }
 .proxy-order-note { margin-top: 12px; color: var(--muted); font-size: 0.76rem; white-space: pre-wrap; }
+.proxy-receipt-source { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; color: var(--teal); font-size: 0.65rem; font-weight: 750; }
+.proxy-receipt-pending { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 11px; border-left: 3px solid var(--gold); background: var(--gold-soft); color: #755300; font-size: 0.7rem; font-weight: 700; }
 
 .proxy-order-actions { margin-top: 15px; }
 .proxy-edit-drawer { margin-bottom: 14px; }

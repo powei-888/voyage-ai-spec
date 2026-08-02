@@ -112,4 +112,115 @@ describe("ProxyPurchasesService", () => {
     await expect(service.cancel("user-1", "trip-1", "proxy-1"))
       .rejects.toThrow("Delete recorded collections before cancelling this proxy purchase.");
   });
+
+  it("creates a pending order from translated receipt items with source indexes", async () => {
+    const external = { id: "external-1", displayName: "阿姨" };
+    const purchaseCreate = jest.fn().mockImplementation(({ data }) => ({
+      id: "proxy-receipt-1",
+      tripId: "trip-1",
+      externalMemberId: external.id,
+      payerMemberId: null,
+      expenseId: null,
+      sourceReceiptId: "receipt-1",
+      status: ProxyPurchaseStatus.requested,
+      currency: "JPY",
+      note: data.note,
+      purchasedAt: null,
+      createdByMemberId: "actor-member",
+      createdAt: new Date("2026-08-02T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-02T00:00:00.000Z"),
+      externalMember: external,
+      payerMember: null,
+      expense: null,
+      items: data.items.create.map((item: object, index: number) => ({
+        id: `source-item-${index}`,
+        proxyPurchaseId: "proxy-receipt-1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...item
+      })),
+      settlements: []
+    }));
+    const receipt = {
+      id: "receipt-1",
+      imageOriginalName: "tokyo.png",
+      extractedJson: {
+        currency: "JPY",
+        items: [
+          {
+            description: "ロートCキューブ",
+            translatedDescription: "樂敦 C Cube 眼藥水",
+            originalLanguage: "ja",
+            translationStatus: "translated",
+            translationSource: "local_ai",
+            translationModel: "qwen3.5:9b",
+            quantity: "2",
+            unitPrice: "350",
+            amount: "700"
+          },
+          {
+            description: "抹茶クッキー",
+            translatedDescription: "抹茶餅乾",
+            originalLanguage: "ja",
+            translationStatus: "translated",
+            translationSource: "manual",
+            translationModel: null,
+            quantity: "1",
+            unitPrice: "420",
+            amount: "420"
+          }
+        ]
+      }
+    };
+    const transactionClient = {
+      receipt: { findFirst: jest.fn().mockResolvedValue({ id: "receipt-1" }) },
+      tripMember: { create: jest.fn().mockResolvedValue(external) },
+      proxyPurchase: { create: purchaseCreate }
+    };
+    const prisma = {
+      trip: { findUnique: jest.fn().mockResolvedValue({ baseCurrency: "JPY" }) },
+      receipt: { findFirst: jest.fn().mockResolvedValue(receipt) },
+      $transaction: jest.fn(async (callback: (tx: typeof transactionClient) => unknown) =>
+        callback(transactionClient)
+      )
+    };
+    const access = {
+      requireMember: jest.fn().mockResolvedValue({ id: "actor-member" })
+    };
+    const service = new ProxyPurchasesService(
+      prisma as unknown as PrismaService,
+      access as unknown as TripAccessService
+    );
+
+    const result = await service.createFromReceipt(
+      "user-1",
+      "trip-1",
+      "receipt-1",
+      {
+        newExternalName: "阿姨",
+        itemIndexes: [0, 1],
+        note: "日本藥妝"
+      }
+    );
+
+    expect(result).toMatchObject({
+      status: "requested",
+      sourceReceiptId: "receipt-1",
+      totalAmount: "1120",
+      outstandingAmount: "0"
+    });
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        description: "樂敦 C Cube 眼藥水",
+        sourceReceiptId: "receipt-1",
+        sourceReceiptItemIndex: 0,
+        amount: "700"
+      }),
+      expect.objectContaining({
+        description: "抹茶餅乾",
+        sourceReceiptItemIndex: 1,
+        amount: "420"
+      })
+    ]);
+  });
 });

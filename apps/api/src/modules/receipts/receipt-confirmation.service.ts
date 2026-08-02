@@ -1,10 +1,16 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { ExpenseSplitMethod, Prisma, ReceiptStatus } from "@prisma/client";
+import {
+  ExpenseSplitMethod,
+  Prisma,
+  ProxyPurchaseStatus,
+  ReceiptStatus
+} from "@prisma/client";
 import { parseDateOnly } from "../../common/date-utils";
 import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
 import { SplitCalculatorService } from "../expenses/split-calculator.service";
+import { fromMinorUnits, toMinorUnits } from "../expenses/money";
 import { ConfirmReceiptDto } from "./receipts.dto";
 
 const confirmedExpenseInclude = {
@@ -41,18 +47,12 @@ export class ReceiptConfirmationService {
       );
     }
     const splitMethod = dto.splitMethod ?? ExpenseSplitMethod.equal;
-    const shares = splitMethod === ExpenseSplitMethod.custom
-      ? this.split.customSplit(dto.amount, dto.currency, dto.splitShares ?? [])
-      : this.split.equalSplit(
-          dto.amount,
-          dto.currency,
-          dto.payerMemberId,
-          dto.participantMemberIds ?? []
-        );
-    await this.access.assertTravelersBelongToTrip(tripId, [dto.payerMemberId]);
-    await this.access.assertMembersBelongToTrip(
+    const travelerMemberIds = splitMethod === ExpenseSplitMethod.custom
+      ? (dto.splitShares ?? []).map((share) => share.memberId)
+      : dto.participantMemberIds ?? [];
+    await this.access.assertTravelersBelongToTrip(
       tripId,
-      shares.map((share) => share.memberId)
+      [dto.payerMemberId, ...travelerMemberIds]
     );
 
     try {
@@ -60,7 +60,16 @@ export class ReceiptConfirmationService {
         async (tx) => {
           const receipt = await tx.receipt.findFirst({
             where: { id: receiptId, tripId },
-            include: { confirmedExpense: true }
+            include: {
+              confirmedExpense: true,
+              proxyPurchases: {
+                where: { status: ProxyPurchaseStatus.requested },
+                include: {
+                  externalMember: { select: { id: true } },
+                  items: { select: { amount: true } }
+                }
+              }
+            }
           });
           if (!receipt) {
             throw DomainError.notFound("RECEIPT_NOT_FOUND", "Receipt not found.");
@@ -84,6 +93,62 @@ export class ReceiptConfirmationService {
               throw new DomainError("INVALID_LINKED_EVENT", "Linked event is not in this trip.");
             }
           }
+          const totalMinor = toMinorUnits(dto.amount, dto.currency);
+          const proxyPurchases = receipt.proxyPurchases ?? [];
+          const proxyShares = new Map<string, bigint>();
+          for (const purchase of proxyPurchases) {
+            if (purchase.currency !== dto.currency) {
+              throw new DomainError(
+                "CURRENCY_MISMATCH",
+                "Receipt-linked proxy purchase currency does not match the receipt."
+              );
+            }
+            const orderMinor = purchase.items.reduce(
+              (sum, item) => sum + toMinorUnits(item.amount.toString(), dto.currency),
+              0n
+            );
+            proxyShares.set(
+              purchase.externalMember.id,
+              (proxyShares.get(purchase.externalMember.id) ?? 0n) + orderMinor
+            );
+          }
+          const proxyTotalMinor = [...proxyShares.values()].reduce(
+            (sum, amount) => sum + amount,
+            0n
+          );
+          if (proxyTotalMinor > totalMinor) {
+            throw new DomainError(
+              "RECEIPT_PROXY_TOTAL_EXCEEDS_AMOUNT",
+              "Assigned proxy-purchase items exceed the receipt total.",
+              HttpStatus.UNPROCESSABLE_ENTITY,
+              {
+                receiptAmount: fromMinorUnits(totalMinor, dto.currency),
+                proxyAmount: fromMinorUnits(proxyTotalMinor, dto.currency)
+              }
+            );
+          }
+          const travelerTotalMinor = totalMinor - proxyTotalMinor;
+          const travelerShares = travelerTotalMinor === 0n
+            ? []
+            : splitMethod === ExpenseSplitMethod.custom
+              ? this.split.customSplit(
+                  fromMinorUnits(travelerTotalMinor, dto.currency),
+                  dto.currency,
+                  dto.splitShares ?? []
+                )
+              : this.split.equalSplit(
+                  fromMinorUnits(travelerTotalMinor, dto.currency),
+                  dto.currency,
+                  dto.payerMemberId,
+                  dto.participantMemberIds ?? []
+                );
+          const shares = [
+            ...travelerShares,
+            ...[...proxyShares.entries()].map(([memberId, amount]) => ({
+              memberId,
+              shareAmount: fromMinorUnits(amount, dto.currency)
+            }))
+          ].sort((a, b) => a.memberId.localeCompare(b.memberId));
 
           const expense = await tx.expense.create({
             data: {
@@ -95,7 +160,9 @@ export class ReceiptConfirmationService {
               category: dto.category,
               expenseDate: dto.expenseDate ? parseDateOnly(dto.expenseDate) : null,
               payerMemberId: dto.payerMemberId,
-              splitMethod,
+              splitMethod: proxyPurchases.length
+                ? ExpenseSplitMethod.custom
+                : splitMethod,
               linkedReceiptId: receiptId,
               linkedEventId: dto.linkedEventId || null,
               createdByMemberId: actor.id,
@@ -103,6 +170,30 @@ export class ReceiptConfirmationService {
             },
             select: { id: true }
           });
+          if (proxyPurchases.length > 0) {
+            const linked = await tx.proxyPurchase.updateMany({
+              where: {
+                id: { in: proxyPurchases.map((purchase) => purchase.id) },
+                status: ProxyPurchaseStatus.requested,
+                sourceReceiptId: receiptId
+              },
+              data: {
+                payerMemberId: dto.payerMemberId,
+                expenseId: expense.id,
+                purchasedAt: dto.expenseDate
+                  ? parseDateOnly(dto.expenseDate)
+                  : new Date(),
+                status: ProxyPurchaseStatus.purchased
+              }
+            });
+            if (linked.count !== proxyPurchases.length) {
+              throw new DomainError(
+                "RECEIPT_PROXY_PURCHASE_CHANGED",
+                "A receipt-linked proxy purchase changed during confirmation.",
+                HttpStatus.CONFLICT
+              );
+            }
+          }
           await tx.receipt.update({
             where: { id: receiptId },
             data: {

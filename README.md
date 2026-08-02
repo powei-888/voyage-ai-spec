@@ -18,6 +18,8 @@ AI should reduce travel chaos, but users must stay in control.
 - Expense records
 - Equal and custom split calculation
 - Multi-item proxy-purchase orders grouped by external party
+- Traditional Chinese receipt line-item translation with immutable OCR originals
+- Receipt line-item assignment to proxy-purchase parties without duplicate expenses
 - Pending purchase lists, traveler advances, partial collections, and settlement tracking
 - Completed repayment records and remaining balance calculation
 - On-premise receipt OCR with line-item extraction and Qwen vision confirmation
@@ -109,9 +111,19 @@ Root scripts load `.env` through `dotenv-cli`. If port 5432 is occupied, update 
 
 Receipt images use EasyOCR text plus Qwen vision. PDF receipts use CUBI parser text plus Qwen. Both paths create editable receipt drafts and require user confirmation before an expense is created.
 
+Each extracted line item keeps its OCR description and stores the Traditional Chinese
+translation separately with language, status, source, and model metadata. Users can
+retry local Qwen translation or save a manual correction without replacing the source
+text.
+
 Trip parties are separated into travelers and external expense parties. External parties cannot sign in, join itinerary events, or pay an expense. They can receive custom expense shares, appear in external receivables, and record repayments to a traveler. Their shares are excluded from trip budget totals and AI budget analysis.
 
 The proxy-purchase workspace keeps each outside party together with one or more requested products. A pending list has no accounting effect. Confirming a purchase atomically creates one shopping expense whose payer is a traveler and whose complete share belongs to the external party. Partial and final collections are canonical settlement records linked back to the order. Deleting a collection recalculates both the order and trip balance; cancelling an uncollected purchase voids its linked expense. Proxy-generated expenses are locked in the generic expense editor so the two views cannot drift.
+
+Receipt items can also be assigned to an existing or newly created external party. These
+source-linked orders remain pending until the receipt is confirmed. Receipt confirmation
+creates one canonical expense, adds each assigned order total as an external share, splits
+only the remainder among travelers, and links every source order to that same expense.
 
 `LOCAL_LLM_KEEP_ALIVE=0` unloads Qwen after each request so EasyOCR and the language model can share a 16 GB GPU. Voyage serializes its own local inference work; when EasyOCR is temporarily unavailable, image receipts fall back to Qwen vision. Set either provider to `mock` only for isolated development without the local model services.
 
@@ -197,6 +209,9 @@ PATCH|DELETE    /api/trips/:tripId/proxy-purchases/:purchaseId
 POST            /api/trips/:tripId/proxy-purchases/:purchaseId/confirm
 GET|POST        /api/trips/:tripId/receipts
 PATCH|DELETE    /api/trips/:tripId/receipts/:receiptId
+POST            /api/trips/:tripId/receipts/:receiptId/translate
+PATCH           /api/trips/:tripId/receipts/:receiptId/translations
+POST            /api/trips/:tripId/receipts/:receiptId/proxy-purchases
 POST            /api/trips/:tripId/receipts/:receiptId/confirm
 GET|POST        /api/trips/:tripId/settlements
 DELETE          /api/trips/:tripId/settlements/:settlementId
@@ -208,6 +223,6 @@ POST            /api/trips/:tripId/ai-proposals/:proposalId/reject
 
 ### Receipt and AI boundaries
 
-Receipt upload accepts JPEG, PNG, WebP, or PDF files up to 8 MB. Local OCR and Qwen create an editable draft with merchant, total, date, category, and normalized purchase line items. Users can review those items while preparing expense shares or a multi-item proxy-purchase list; only explicit confirmation creates the canonical receipt expense. `Expense.linkedReceiptId` is the single unique receipt-to-expense relation, so repeated confirmation returns the same expense.
+Receipt upload accepts JPEG, PNG, WebP, or PDF files up to 8 MB. Local OCR and Qwen create an editable draft with merchant, total, date, category, normalized purchase line items, and separate Traditional Chinese translations. Users can manually correct translations and assign selected items to external proxy-purchase parties. Only explicit receipt confirmation creates the canonical expense; all source-linked proxy orders share that expense instead of creating duplicates. `Expense.linkedReceiptId` remains the single unique receipt-to-expense relation, so repeated confirmation returns the same expense.
 
 AI requests create stored proposals. Accept and reject are explicit state transitions. The local Qwen provider never calls an external API or mutates trip data directly; prompts include the current itinerary, budget, category totals, and pending receipt count.

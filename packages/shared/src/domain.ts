@@ -103,7 +103,7 @@ export type Expense = {
   payerMember: { id: string; displayName: string };
   participants: ExpenseParticipant[];
   linkedEvent: { id: string; title: string } | null;
-  proxyPurchase: { id: string } | null;
+  proxyPurchases: Array<{ id: string }>;
 };
 
 export type ExpenseBalances = {
@@ -130,6 +130,11 @@ export type ExpenseBalances = {
 
 export type ReceiptLineItem = {
   description: string;
+  translatedDescription: string | null;
+  originalLanguage: string | null;
+  translationStatus: "pending" | "translated" | "failed";
+  translationSource: "local_ai" | "manual" | null;
+  translationModel: string | null;
   quantity: string | null;
   unitPrice: string | null;
   amount: string;
@@ -159,6 +164,8 @@ export type ProxyPurchaseItem = {
   amount: string;
   note: string | null;
   sortOrder: number;
+  sourceReceiptId: string | null;
+  sourceReceiptItemIndex: number | null;
 };
 
 export type ProxyPurchase = {
@@ -167,6 +174,7 @@ export type ProxyPurchase = {
   externalMemberId: string;
   payerMemberId: string | null;
   expenseId: string | null;
+  sourceReceiptId: string | null;
   status: "requested" | "purchased" | "settled" | "cancelled";
   currency: string;
   note: string | null;
@@ -217,6 +225,12 @@ export type Receipt = {
     amount: string;
     currency: string;
   } | null;
+  proxyPurchases: Array<{
+    id: string;
+    status: "requested" | "purchased" | "cancelled";
+    externalMember: { id: string; displayName: string };
+    items: Array<{ sourceReceiptItemIndex: number | null }>;
+  }>;
 };
 
 export type Booking = {

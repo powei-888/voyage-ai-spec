@@ -32,6 +32,8 @@ describe("LocalOcrProvider", () => {
         items: [
           {
             description: "手沖咖啡",
+            translatedDescription: "手沖咖啡",
+            originalLanguage: "zh-Hant",
             quantity: "2 杯",
             unitPrice: "TWD 200",
             amount: "TWD 400"
@@ -65,6 +67,11 @@ describe("LocalOcrProvider", () => {
       items: [
         {
           description: "手沖咖啡",
+          translatedDescription: "手沖咖啡",
+          originalLanguage: "zh-Hant",
+          translationStatus: "translated",
+          translationSource: "local_ai",
+          translationModel: "qwen3.5:9b",
           quantity: "2",
           unitPrice: "200",
           amount: "400"

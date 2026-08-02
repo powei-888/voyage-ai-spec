@@ -5,15 +5,27 @@ import { DomainError } from "../../common/domain-error";
 import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
 import { OCR_PROVIDER, OcrProvider } from "./ocr-provider";
+import { extractionWithNormalizedItems } from "./receipt-line-items";
 import { RECEIPT_STORAGE, ReceiptStorage } from "./receipt-storage";
 import { UpdateReceiptDraftDto } from "./receipts.dto";
 
 const receiptInclude = {
   uploadedByMember: { select: { id: true, displayName: true } },
   confirmedByMember: { select: { id: true, displayName: true } },
-  confirmedExpense: { select: { id: true, title: true, amount: true, currency: true } }
+  confirmedExpense: { select: { id: true, title: true, amount: true, currency: true } },
+  proxyPurchases: {
+    select: {
+      id: true,
+      status: true,
+      externalMember: { select: { id: true, displayName: true } },
+      items: {
+        select: { sourceReceiptItemIndex: true },
+        orderBy: { sortOrder: "asc" as const }
+      }
+    },
+    orderBy: { createdAt: "asc" as const }
+  }
 } as const;
-
 
 type UploadFile = {
   originalName: string;
@@ -155,7 +167,7 @@ export class ReceiptsService {
     await this.access.requireMember(tripId, userId);
     const receipt = await this.prisma.receipt.findFirst({
       where: { id: receiptId, tripId },
-      include: { confirmedExpense: true }
+      include: { confirmedExpense: true, proxyPurchases: { select: { id: true, status: true } } }
     });
     if (!receipt) {
       throw DomainError.notFound("RECEIPT_NOT_FOUND", "Receipt not found.");
@@ -164,6 +176,13 @@ export class ReceiptsService {
       throw new DomainError(
         "RECEIPT_ALREADY_CONFIRMED",
         "Confirmed receipts cannot be deleted.",
+        HttpStatus.CONFLICT
+      );
+    }
+    if (receipt.proxyPurchases.some((purchase) => purchase.status !== "cancelled")) {
+      throw new DomainError(
+        "RECEIPT_HAS_PROXY_PURCHASES",
+        "Cancel receipt-linked proxy purchases before deleting this receipt.",
         HttpStatus.CONFLICT
       );
     }
@@ -209,8 +228,11 @@ export class ReceiptsService {
   }
 
   private present<T extends { id: string; tripId: string }>(receipt: T): T & { imageUrl: string } {
+    const stored = receipt as T & { extractedJson?: unknown };
+    const extractedJson = extractionWithNormalizedItems(stored.extractedJson);
     return {
       ...receipt,
+      ...(extractedJson ? { extractedJson } : {}),
       imageUrl: `/api/trips/${receipt.tripId}/receipts/${receipt.id}/image`
     };
   }

@@ -175,7 +175,6 @@ Fields:
 - confidence_score: decimal nullable
 - confirmed_by_member_id: uuid nullable
 - confirmed_at: timestamp nullable
-- created_expense_id: uuid nullable
 - created_at: timestamp
 - updated_at: timestamp
 
@@ -183,11 +182,14 @@ Important:
 
 A receipt can exist without an expense. Expense creation happens only after confirmation.
 
+Each `extracted_json.items[]` entry stores the immutable OCR `description`,
+`translatedDescription`, `originalLanguage`, `translationStatus`,
+`translationSource`, and `translationModel` alongside quantity and amount fields.
+
 Indexes:
 
 - trip_id
 - ocr_status
-- created_expense_id
 
 ### expenses
 
@@ -208,6 +210,7 @@ Fields:
 - linked_event_id: uuid nullable
 - status: enum active / voided
 - created_by_member_id: uuid nullable
+- source_receipt_id: uuid nullable
 - created_at: timestamp
 - updated_at: timestamp
 
@@ -275,8 +278,15 @@ Fields:
 - amount: decimal, calculated from quantity and unit price
 - note: string nullable
 - sort_order: integer
+- source_receipt_id: uuid nullable
+- source_receipt_item_index: non-negative integer nullable
 - created_at: timestamp
 - updated_at: timestamp
+
+Constraint:
+
+- unique source_receipt_id + source_receipt_item_index
+- source receipt and item index are both null or both present
 
 ### settlements
 
@@ -375,4 +385,7 @@ Negative balance means the member consumed more than they paid.
 - Timeline event can exist without a booking.
 - A member can exist without a user account.
 - A proxy-purchase order is not a second balance ledger; its expense and settlements are canonical.
+- Several receipt-linked proxy-purchase orders can share the receipt's single canonical expense.
+- A receipt-linked order is purchased only inside receipt confirmation; it cannot create a second expense.
+- OCR originals are never replaced by translated or manually corrected text.
 - Do not delete financial records silently. Use status when historical context matters.

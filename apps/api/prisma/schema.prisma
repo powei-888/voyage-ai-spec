@@ -268,11 +268,13 @@ model Receipt {
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  trip              Trip        @relation(fields: [tripId], references: [id])
-  uploadedByMember  TripMember? @relation("ReceiptUploader", fields: [uploadedByMemberId], references: [id])
-  confirmedByMember TripMember? @relation("ReceiptConfirmer", fields: [confirmedByMemberId], references: [id])
+  trip               Trip                @relation(fields: [tripId], references: [id])
+  uploadedByMember   TripMember?         @relation("ReceiptUploader", fields: [uploadedByMemberId], references: [id])
+  confirmedByMember  TripMember?         @relation("ReceiptConfirmer", fields: [confirmedByMemberId], references: [id])
   /// Canonical confirmed expense, owned by Expense.linkedReceiptId.
-  confirmedExpense  Expense?    @relation("ReceiptConfirmedExpense")
+  confirmedExpense   Expense?            @relation("ReceiptConfirmedExpense")
+  proxyPurchases     ProxyPurchase[]     @relation("ReceiptProxyPurchases")
+  proxyPurchaseItems ProxyPurchaseItem[] @relation("ReceiptProxyPurchaseItems")
 
   @@index([tripId])
   @@index([ocrStatus])
@@ -305,7 +307,7 @@ model Expense {
   linkedReceipt   Receipt?             @relation("ReceiptConfirmedExpense", fields: [linkedReceiptId], references: [id])
   linkedEvent     ItineraryEvent?      @relation(fields: [linkedEventId], references: [id])
   participants    ExpenseParticipant[]
-  proxyPurchase   ProxyPurchase?
+  proxyPurchases  ProxyPurchase[]
 
   @@index([tripId])
   @@index([payerMemberId])
@@ -364,6 +366,7 @@ model ProxyPurchase {
   note              String?
   purchasedAt       DateTime?
   createdByMemberId String?
+  sourceReceiptId   String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
@@ -372,6 +375,7 @@ model ProxyPurchase {
   payerMember     TripMember?         @relation("ProxyPurchasePayer", fields: [payerMemberId], references: [id])
   expense         Expense?            @relation(fields: [expenseId], references: [id], onDelete: SetNull)
   createdByMember TripMember?         @relation("ProxyPurchaseCreator", fields: [createdByMemberId], references: [id])
+  sourceReceipt   Receipt?            @relation("ReceiptProxyPurchases", fields: [sourceReceiptId], references: [id], onDelete: SetNull)
   items           ProxyPurchaseItem[]
   settlements     Settlement[]
 
@@ -379,23 +383,29 @@ model ProxyPurchase {
   @@index([externalMemberId])
   @@index([payerMemberId])
   @@index([createdByMemberId])
+  @@index([sourceReceiptId])
 }
 
 model ProxyPurchaseItem {
-  id              String   @id @default(uuid())
-  proxyPurchaseId String
-  description     String
-  quantity        Int      @default(1)
-  unitPrice       Decimal
-  amount          Decimal
-  note            String?
-  sortOrder       Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                     String   @id @default(uuid())
+  proxyPurchaseId        String
+  description            String
+  quantity               Int      @default(1)
+  unitPrice              Decimal
+  amount                 Decimal
+  note                   String?
+  sortOrder              Int      @default(0)
+  sourceReceiptId        String?
+  sourceReceiptItemIndex Int?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   proxyPurchase ProxyPurchase @relation(fields: [proxyPurchaseId], references: [id], onDelete: Cascade)
+  sourceReceipt Receipt?      @relation("ReceiptProxyPurchaseItems", fields: [sourceReceiptId], references: [id], onDelete: SetNull)
 
+  @@unique([sourceReceiptId, sourceReceiptItemIndex])
   @@index([proxyPurchaseId, sortOrder])
+  @@index([sourceReceiptId])
 }
 
 model Booking {

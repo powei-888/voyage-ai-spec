@@ -5,6 +5,7 @@ import {
   ExpenseStatus,
   Prisma,
   ProxyPurchaseStatus,
+  ReceiptStatus,
   TripMemberKind,
   TripRole
 } from "@prisma/client";
@@ -14,6 +15,8 @@ import { TripAccessService } from "../../common/trip-access.service";
 import { PrismaService } from "../../infra/database/prisma.service";
 import { fromMinorUnits, toMinorUnits } from "../expenses/money";
 import { normalizeProxyPurchaseItems } from "./proxy-purchase-money";
+import { normalizeStoredReceiptItems } from "../receipts/receipt-line-items";
+import type { CreateReceiptProxyPurchaseDto } from "../receipts/receipts.dto";
 import {
   ConfirmProxyPurchaseDto,
   CreateProxyPurchaseDto,
@@ -124,6 +127,145 @@ export class ProxyPurchasesService {
     return this.serialize(purchase);
   }
 
+  async createFromReceipt(
+    userId: string,
+    tripId: string,
+    receiptId: string,
+    dto: CreateReceiptProxyPurchaseDto
+  ) {
+    const actor = await this.access.requireMember(tripId, userId);
+    const trip = await this.requireTrip(tripId);
+    const receipt = await this.prisma.receipt.findFirst({
+      where: { id: receiptId, tripId, ocrStatus: ReceiptStatus.extracted },
+      select: { id: true, extractedJson: true, imageOriginalName: true }
+    });
+    if (!receipt?.extractedJson) {
+      throw new DomainError(
+        "RECEIPT_NOT_EDITABLE",
+        "Only extracted receipt drafts can create proxy purchases.",
+        HttpStatus.CONFLICT
+      );
+    }
+    const extraction = receipt.extractedJson as Record<string, unknown>;
+    const currency = String(extraction.currency ?? "").toUpperCase();
+    if (currency !== trip.baseCurrency) {
+      throw new DomainError(
+        "CURRENCY_MISMATCH",
+        `Receipt currency must match the trip base currency (${trip.baseCurrency}).`
+      );
+    }
+    const receiptItems = normalizeStoredReceiptItems(extraction.items);
+    const indexes = [...dto.itemIndexes].sort((a, b) => a - b);
+    if (indexes.some((index) => index < 0 || index >= receiptItems.length)) {
+      throw new DomainError(
+        "INVALID_RECEIPT_ITEM",
+        "Receipt item index is invalid.",
+        HttpStatus.UNPROCESSABLE_ENTITY
+      );
+    }
+    const existingExternal = dto.externalMemberId
+      ? await this.requireExternalMember(tripId, dto.externalMemberId)
+      : null;
+    const newExternalName = dto.newExternalName?.trim();
+    if (Boolean(existingExternal) === Boolean(newExternalName)) {
+      throw new DomainError(
+        "PROXY_PURCHASE_RECIPIENT_REQUIRED",
+        "Choose one external party or create a new one."
+      );
+    }
+    const inputItems = indexes.map((sourceReceiptItemIndex) => {
+      const item = receiptItems[sourceReceiptItemIndex];
+      if (!item) {
+        throw new DomainError(
+          "INVALID_RECEIPT_ITEM",
+          "Receipt item index is invalid.",
+          HttpStatus.UNPROCESSABLE_ENTITY
+        );
+      }
+      let quantity = Number(item.quantity);
+      let unitPrice = item.unitPrice;
+      if (
+        !Number.isInteger(quantity) ||
+        quantity < 1 ||
+        quantity > 999 ||
+        !unitPrice ||
+        toMinorUnits(unitPrice, currency) * BigInt(quantity) !==
+          toMinorUnits(item.amount, currency)
+      ) {
+        quantity = 1;
+        unitPrice = item.amount;
+      }
+      return {
+        description: item.translatedDescription || item.description,
+        quantity,
+        unitPrice,
+        note: item.translatedDescription && item.translatedDescription !== item.description
+          ? `收據原文：${item.description}`
+          : undefined,
+        sourceReceiptItemIndex
+      };
+    });
+    const normalized = normalizeProxyPurchaseItems(inputItems, currency).items;
+
+    try {
+      const purchase = await this.prisma.$transaction(async (tx) => {
+        const source = await tx.receipt.findFirst({
+          where: { id: receiptId, tripId, ocrStatus: ReceiptStatus.extracted },
+          select: { id: true }
+        });
+        if (!source) {
+          throw new DomainError(
+            "RECEIPT_NOT_EDITABLE",
+            "Receipt is no longer available for proxy-purchase assignment.",
+            HttpStatus.CONFLICT
+          );
+        }
+        const external = existingExternal ?? await tx.tripMember.create({
+          data: {
+            tripId,
+            displayName: newExternalName!,
+            kind: TripMemberKind.external,
+            role: TripRole.member
+          },
+          select: { id: true, displayName: true }
+        });
+        return tx.proxyPurchase.create({
+          data: {
+            tripId,
+            externalMemberId: external.id,
+            status: ProxyPurchaseStatus.requested,
+            currency,
+            note: dto.note?.trim() ||
+              `從收據 ${receipt.imageOriginalName || receipt.id} 匯入`,
+            sourceReceiptId: receiptId,
+            createdByMemberId: actor.id,
+            items: {
+              create: normalized.map((item, index) => ({
+                ...item,
+                sourceReceiptId: receiptId,
+                sourceReceiptItemIndex: inputItems[index]!.sourceReceiptItemIndex
+              }))
+            }
+          },
+          include: proxyPurchaseInclude
+        });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      return this.serialize(purchase);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        ["P2002", "P2034"].includes(error.code)
+      ) {
+        throw new DomainError(
+          "RECEIPT_ITEM_ALREADY_ASSIGNED",
+          "One or more receipt items are already assigned to a proxy purchase.",
+          HttpStatus.CONFLICT
+        );
+      }
+      throw error;
+    }
+  }
+
   async update(
     userId: string,
     tripId: string,
@@ -132,6 +274,13 @@ export class ProxyPurchasesService {
   ) {
     await this.access.requireMember(tripId, userId);
     const existing = await this.requirePurchase(tripId, purchaseId);
+    if (existing.sourceReceiptId) {
+      throw new DomainError(
+        "RECEIPT_PROXY_PURCHASE_LOCKED",
+        "Edit receipt-linked items from the receipt review.",
+        HttpStatus.CONFLICT
+      );
+    }
     if (existing.status !== ProxyPurchaseStatus.requested) {
       throw new DomainError(
         "PROXY_PURCHASE_LOCKED",
@@ -178,6 +327,13 @@ export class ProxyPurchasesService {
     const actor = await this.access.requireMember(tripId, userId);
     await this.access.assertTravelersBelongToTrip(tripId, [dto.payerMemberId]);
     const existing = await this.requirePurchase(tripId, purchaseId);
+    if (existing.sourceReceiptId) {
+      throw new DomainError(
+        "RECEIPT_PROXY_PURCHASE_LOCKED",
+        "Confirm this proxy purchase by confirming its source receipt.",
+        HttpStatus.CONFLICT
+      );
+    }
     if (existing.status !== ProxyPurchaseStatus.requested) {
       throw new DomainError(
         "PROXY_PURCHASE_ALREADY_RECORDED",
@@ -229,6 +385,16 @@ export class ProxyPurchasesService {
     if (existing.status === ProxyPurchaseStatus.cancelled) {
       return this.serialize(existing);
     }
+    if (
+      existing.sourceReceiptId &&
+      existing.status === ProxyPurchaseStatus.purchased
+    ) {
+      throw new DomainError(
+        "RECEIPT_PROXY_PURCHASE_LOCKED",
+        "A purchased receipt-linked order cannot be cancelled separately.",
+        HttpStatus.CONFLICT
+      );
+    }
     if (existing.settlements.length > 0) {
       throw new DomainError(
         "PROXY_PURCHASE_HAS_COLLECTIONS",
@@ -237,6 +403,15 @@ export class ProxyPurchasesService {
       );
     }
     const purchase = await this.prisma.$transaction(async (tx) => {
+      if (
+        existing.sourceReceiptId &&
+        existing.status === ProxyPurchaseStatus.requested
+      ) {
+        await tx.proxyPurchaseItem.updateMany({
+          where: { proxyPurchaseId: purchaseId },
+          data: { sourceReceiptId: null, sourceReceiptItemIndex: null }
+        });
+      }
       if (existing.expenseId) {
         await tx.expense.update({
           where: { id: existing.expenseId },
@@ -360,7 +535,8 @@ export class ProxyPurchasesService {
       outstandingAmount: fromMinorUnits(outstandingMinor, purchase.currency),
       canCancel:
         purchase.status !== ProxyPurchaseStatus.cancelled &&
-        purchase.settlements.length === 0
+        purchase.settlements.length === 0 &&
+        !(purchase.sourceReceiptId && purchase.status === ProxyPurchaseStatus.purchased)
     };
   }
 }

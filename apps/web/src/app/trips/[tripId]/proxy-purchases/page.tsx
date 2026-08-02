@@ -6,6 +6,7 @@ import {
   PackageCheck,
   Pencil,
   Plus,
+  ReceiptText,
   ShoppingBag,
   Trash2
 } from "lucide-react";
@@ -107,6 +108,11 @@ export default async function ProxyPurchasesPage({ params, searchParams }: PageP
                           <span className={`proxy-status proxy-status-${purchase.status}`}>{statusLabels[purchase.status]}</span>
                           <h3>{purchase.items[0]?.description || "代購單"}{purchase.items.length > 1 ? ` 等 ${purchase.items.length} 項` : ""}</h3>
                           <p>建立於 {formatDate(purchase.createdAt)}</p>
+                          {purchase.sourceReceiptId ? (
+                            <a className="proxy-receipt-source" href={`/trips/${tripId}/receipts`}>
+                              <ReceiptText size={13} /> 收據明細來源
+                            </a>
+                          ) : null}
                         </div>
                         <strong>{formatMoney(purchase.totalAmount, purchase.currency)}</strong>
                       </div>
@@ -125,7 +131,7 @@ export default async function ProxyPurchasesPage({ params, searchParams }: PageP
 
                       {purchase.note ? <p className="proxy-order-note">{purchase.note}</p> : null}
 
-                      {purchase.status === "requested" ? (
+                      {purchase.status === "requested" && !purchase.sourceReceiptId ? (
                         <div className="proxy-order-actions">
                           <details className="edit-drawer proxy-edit-drawer">
                             <summary><Pencil size={14} /> 編輯清單</summary>
@@ -144,6 +150,13 @@ export default async function ProxyPurchasesPage({ params, searchParams }: PageP
                             <label className="field"><span>購買日期</span><input name="purchasedAt" type="date" defaultValue={today} required /></label>
                             <PendingButton className="button button-primary" type="submit" pendingLabel="入帳中…"><ShoppingBag size={15} /> 確認已購買</PendingButton>
                           </form>
+                        </div>
+                      ) : null}
+
+                      {purchase.status === "requested" && purchase.sourceReceiptId ? (
+                        <div className="proxy-receipt-pending">
+                          <ReceiptText size={16} />
+                          回到收據確認付款人與旅伴分攤後，這張代購單會一起入帳。
                         </div>
                       ) : null}
 

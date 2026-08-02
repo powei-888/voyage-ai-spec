@@ -77,3 +77,60 @@ export async function deleteReceiptAction(
     redirectWithError(path, error);
   }
 }
+
+export async function translateReceiptItemsAction(
+  tripId: string,
+  receiptId: string
+): Promise<void> {
+  const path = `/trips/${tripId}/receipts`;
+  try {
+    await apiSend(`/trips/${tripId}/receipts/${receiptId}/translate`, "POST");
+    revalidatePath(path);
+    redirect(`${path}?notice=${encodeURIComponent("明細已使用地端 AI 翻譯")}`);
+  } catch (error) {
+    redirectWithError(path, error);
+  }
+}
+
+export async function saveReceiptTranslationsAction(
+  tripId: string,
+  receiptId: string,
+  formData: FormData
+): Promise<void> {
+  const path = `/trips/${tripId}/receipts`;
+  try {
+    const indexes = formStrings(formData, "translationIndex");
+    const translations = formStrings(formData, "translatedDescription");
+    await apiSend(`/trips/${tripId}/receipts/${receiptId}/translations`, "PATCH", {
+      items: indexes.map((index, position) => ({
+        index: Number(index),
+        translatedDescription: translations[position] || ""
+      }))
+    });
+    revalidatePath(path);
+    redirect(`${path}?notice=${encodeURIComponent("明細翻譯已儲存")}`);
+  } catch (error) {
+    redirectWithError(path, error);
+  }
+}
+
+export async function createReceiptProxyPurchaseAction(
+  tripId: string,
+  receiptId: string,
+  formData: FormData
+): Promise<void> {
+  const path = `/trips/${tripId}/receipts`;
+  try {
+    await apiSend(`/trips/${tripId}/receipts/${receiptId}/proxy-purchases`, "POST", {
+      externalMemberId: optionalString(formData, "externalMemberId"),
+      newExternalName: optionalString(formData, "newExternalName"),
+      itemIndexes: formStrings(formData, "itemIndexes").map(Number),
+      note: optionalString(formData, "note")
+    });
+    revalidatePath(path);
+    revalidatePath(`/trips/${tripId}/proxy-purchases`);
+    redirect(`${path}?notice=${encodeURIComponent("已建立收據來源代購單")}`);
+  } catch (error) {
+    redirectWithError(path, error);
+  }
+}

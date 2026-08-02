@@ -26,7 +26,8 @@ describe("ReceiptConfirmationService", () => {
         findFirst: jest.fn(async () => ({
           id: "receipt-1",
           ocrStatus: confirmed ? ReceiptStatus.confirmed : ReceiptStatus.extracted,
-          confirmedExpense: confirmed ? { id: expenseId } : null
+          confirmedExpense: confirmed ? { id: expenseId } : null,
+          proxyPurchases: []
         })),
         update: jest.fn(async () => {
           confirmed = true;
@@ -78,5 +79,97 @@ describe("ReceiptConfirmationService", () => {
     expect(second.id).toBe(expenseId);
     expect(transaction.expense.create).toHaveBeenCalledTimes(1);
     expect(prisma.expense.findUniqueOrThrow).toHaveBeenCalledTimes(2);
+  });
+
+  it("combines receipt-linked proxy shares and traveler remainder into one expense", async () => {
+    const expenseCreate = jest.fn().mockResolvedValue({ id: "expense-shared" });
+    const proxyUpdate = jest.fn().mockResolvedValue({ count: 2 });
+    const transaction = {
+      receipt: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "receipt-1",
+          ocrStatus: ReceiptStatus.extracted,
+          confirmedExpense: null,
+          proxyPurchases: [
+            {
+              id: "proxy-a",
+              currency: "JPY",
+              externalMember: { id: "external-a" },
+              items: [{ amount: "400" }]
+            },
+            {
+              id: "proxy-b",
+              currency: "JPY",
+              externalMember: { id: "external-b" },
+              items: [{ amount: "300" }]
+            }
+          ]
+        }),
+        update: jest.fn()
+      },
+      itineraryEvent: { findFirst: jest.fn() },
+      expense: { create: expenseCreate },
+      proxyPurchase: { updateMany: proxyUpdate }
+    };
+    const prisma = {
+      trip: { findUnique: jest.fn().mockResolvedValue({ baseCurrency: "JPY" }) },
+      expense: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: "expense-shared",
+          participants: []
+        }),
+        findUnique: jest.fn()
+      },
+      $transaction: jest.fn(async (callback: (tx: typeof transaction) => Promise<string>) =>
+        callback(transaction)
+      )
+    };
+    const access = {
+      requireMember: jest.fn().mockResolvedValue({ id: "actor-member" }),
+      assertTravelersBelongToTrip: jest.fn().mockResolvedValue(undefined)
+    };
+    const service = new ReceiptConfirmationService(
+      prisma as unknown as PrismaService,
+      access as unknown as TripAccessService,
+      new SplitCalculatorService()
+    );
+
+    await service.confirm("user-1", "trip-1", "receipt-1", {
+      title: "Mixed shopping",
+      amount: "1000",
+      currency: "JPY",
+      category: ExpenseCategory.shopping,
+      expenseDate: "2026-08-02",
+      payerMemberId: "traveler-1",
+      splitMethod: "equal",
+      splitShares: [],
+      participantMemberIds: ["traveler-1", "traveler-2"]
+    });
+
+    expect(expenseCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          amount: "1000",
+          splitMethod: "custom",
+          participants: {
+            create: [
+              { memberId: "external-a", shareAmount: "400" },
+              { memberId: "external-b", shareAmount: "300" },
+              { memberId: "traveler-1", shareAmount: "150" },
+              { memberId: "traveler-2", shareAmount: "150" }
+            ]
+          }
+        })
+      })
+    );
+    expect(proxyUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          expenseId: "expense-shared",
+          payerMemberId: "traveler-1",
+          status: "purchased"
+        })
+      })
+    );
   });
 });

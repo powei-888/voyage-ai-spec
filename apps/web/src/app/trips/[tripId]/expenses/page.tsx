@@ -225,7 +225,7 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                     <strong>{formatMoney(expense.amount, expense.currency)}</strong>
                     <span>{expense.expenseDate ? formatDate(expense.expenseDate) : "未填日期"}</span>
                   </div>
-                  {expense.status === "active" && !expense.proxyPurchase ? (
+                  {expense.status === "active" && expense.proxyPurchases.length === 0 ? (
                     <details className="edit-drawer expense-edit">
                       <summary><Pencil size={14} /> 編輯</summary>
                       <ExpenseForm
@@ -237,11 +237,11 @@ export default async function ExpensesPage({ params, searchParams }: PageProps) 
                         submitLabel="儲存支出"
                       />
                     </details>
-                  ) : expense.proxyPurchase ? (
+                  ) : expense.proxyPurchases.length > 0 ? (
                     <a className="text-link" href={`/trips/${tripId}/proxy-purchases`}><ShoppingBag size={14} /> 由代購單管理</a>
                   ) : <span className="status-pill">{titleCase(expense.status)}</span>}
                 </div>
-                {expense.status === "active" && !expense.proxyPurchase ? (
+                {expense.status === "active" && expense.proxyPurchases.length === 0 ? (
                   <ConfirmForm
                     action={voidExpenseAction.bind(null, tripId, expense.id)}
                     message="要作廢這筆支出嗎？它將不再計入餘額。"
