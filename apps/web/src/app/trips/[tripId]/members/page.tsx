@@ -31,7 +31,8 @@ export default async function MembersPage({ params, searchParams }: PageProps) {
     apiGet<TripMember[]>(`/trips/${tripId}/members`),
     apiGet<LocalUser>("/auth/me")
   ]);
-  const isOwner = trip.ownerUserId === user.id;
+  const currentMember = members.find((member) => member.userId === user.id);
+  const isOwner = currentMember?.role === "owner";
   const invites = isOwner
     ? await apiGet<TripInvite[]>(`/trips/${tripId}/invites`)
     : [];
