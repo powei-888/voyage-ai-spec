@@ -1,0 +1,18 @@
+[Unit]
+Description=Voyage AI API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/voyage-ai-spec
+EnvironmentFile=%h/.config/voyage-ai/voyage.env
+Environment=PORT=3101
+Environment=UPLOAD_DIR=%h/.local/share/voyage-ai/uploads
+ExecStartPre=/usr/bin/mkdir -p %h/.local/share/voyage-ai/uploads
+ExecStart=/usr/bin/npm run start --workspace @voyage/api
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

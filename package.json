@@ -1,6 +1,6 @@
 {
   "name": "voyage-ai",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "packageManager": "npm@10.8.2",
   "workspaces": [
@@ -8,18 +8,22 @@
     "apps/*"
   ],
   "scripts": {
-    "dev:web": "npm run dev --workspace @voyage/web",
-    "dev:api": "npm run dev --workspace @voyage/api",
+    "dev:web": "dotenv -- npm run dev --workspace @voyage/web",
+    "dev:api": "dotenv -- npm run dev --workspace @voyage/api",
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
-    "prisma:generate": "npm run prisma:generate --workspace @voyage/api",
-    "prisma:validate": "npm run prisma:validate --workspace @voyage/api"
+    "prisma:generate": "dotenv -- npm run prisma:generate --workspace @voyage/api",
+    "prisma:validate": "dotenv -- npm run prisma:validate --workspace @voyage/api",
+    "prisma:migrate": "dotenv -- npm run prisma:migrate --workspace @voyage/api",
+    "prisma:seed": "dotenv -- npm run prisma:seed --workspace @voyage/api",
+    "db:reset": "dotenv -- npm run prisma:migrate --workspace @voyage/api -- reset --force"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
+    "dotenv-cli": "^11.0.0",
     "typescript": "^5.9.3"
   },
   "overrides": {

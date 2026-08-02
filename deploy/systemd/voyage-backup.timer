@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Voyage AI backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=20m
+Unit=voyage-backup.service
+
+[Install]
+WantedBy=timers.target

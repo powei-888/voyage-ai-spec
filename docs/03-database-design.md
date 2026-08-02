@@ -86,12 +86,39 @@ Fields:
 Notes:
 
 user_id is nullable to support invited members who do not have accounts yet.
+`kind=external` rows are accounting-only proxy-purchase parties. Invitation redemption
+always creates or reuses a `kind=traveler` row and never merges by display name.
 
 Indexes:
 
 - trip_id
 - user_id
 - trip_id + display_name
+
+### trip_invites
+
+Represents a revocable, expiring capability for joining one trip.
+
+Fields:
+
+- id: uuid, primary key
+- trip_id: uuid
+- token_hash: unique SHA-256 digest
+- mode: enum single / group
+- max_uses: integer 1-100
+- use_count: integer
+- expires_at: timestamp
+- revoked_at: timestamp nullable
+- created_by_member_id: uuid
+
+The raw token is never persisted. A database check keeps use_count between zero and
+max_uses and forces single invitations to have exactly one use.
+
+### trip_invite_redemptions
+
+Records which authenticated user consumed an invitation and when. The `(invite_id,
+user_id)` pair is unique. `member_id` can become null if an owner later removes that
+traveler, preserving the invitation audit record without blocking member removal.
 
 ### itinerary_days
 
@@ -173,9 +200,15 @@ Fields:
 - ocr_status: enum pending / processing / extracted / confirmed / failed
 - extracted_json: jsonb nullable
 - confidence_score: decimal nullable
+- ocr_attempt_count: non-negative integer
+- ocr_max_attempts: integer from 1 to 10
+- ocr_next_attempt_at: timestamp
+- ocr_started_at: timestamp nullable
+- ocr_completed_at: timestamp nullable
+- ocr_lease_expires_at: timestamp nullable
+- ocr_last_error: text nullable
 - confirmed_by_member_id: uuid nullable
 - confirmed_at: timestamp nullable
-- created_expense_id: uuid nullable
 - created_at: timestamp
 - updated_at: timestamp
 
@@ -183,11 +216,19 @@ Important:
 
 A receipt can exist without an expense. Expense creation happens only after confirmation.
 
+Workers claim rows optimistically by `id + updated_at`. Completion and failure updates
+also require the exact lease timestamp so an expired worker cannot overwrite a newer run.
+
+Each `extracted_json.items[]` entry stores the immutable OCR `description`,
+`translatedDescription`, `originalLanguage`, `translationStatus`,
+`translationSource`, and `translationModel` alongside quantity and amount fields.
+
 Indexes:
 
 - trip_id
 - ocr_status
-- created_expense_id
+- ocr_status + ocr_next_attempt_at
+- ocr_lease_expires_at
 
 ### expenses
 
@@ -208,6 +249,7 @@ Fields:
 - linked_event_id: uuid nullable
 - status: enum active / voided
 - created_by_member_id: uuid nullable
+- source_receipt_id: uuid nullable
 - created_at: timestamp
 - updated_at: timestamp
 
@@ -234,6 +276,76 @@ Fields:
 Constraint:
 
 - unique expense_id + member_id
+
+### proxy_purchases
+
+Groups one or more requested products under an external expense party.
+
+Fields:
+
+- id: uuid, primary key
+- trip_id: uuid
+- external_member_id: uuid
+- payer_member_id: uuid nullable
+- expense_id: uuid nullable, unique
+- status: enum requested / purchased / cancelled
+- currency: string
+- note: text nullable
+- purchased_at: date nullable
+- created_by_member_id: uuid nullable
+- created_at: timestamp
+- updated_at: timestamp
+
+State rules:
+
+- requested has no payer, expense, or purchase date
+- purchased requires a traveler payer, canonical expense, and purchase date
+- cancelled retains its historical links; a purchased order's expense is voided
+- settled is derived when linked settlements equal the order total, not stored as a second state
+
+### proxy_purchase_items
+
+Represents the individual products in a proxy-purchase order.
+
+Fields:
+
+- id: uuid, primary key
+- proxy_purchase_id: uuid
+- description: string
+- quantity: positive integer
+- unit_price: decimal
+- amount: decimal, calculated from quantity and unit price
+- note: string nullable
+- sort_order: integer
+- source_receipt_id: uuid nullable
+- source_receipt_item_index: non-negative integer nullable
+- created_at: timestamp
+- updated_at: timestamp
+
+Constraint:
+
+- unique source_receipt_id + source_receipt_item_index
+- source receipt and item index are both null or both present
+
+### settlements
+
+Represents an actual repayment between two trip accounting parties.
+
+Fields:
+
+- id: uuid, primary key
+- trip_id: uuid
+- from_member_id: uuid
+- to_member_id: uuid
+- amount: decimal
+- currency: string
+- note: string nullable
+- settled_at: date
+- proxy_purchase_id: uuid nullable
+- created_by_member_id: uuid nullable
+- created_at: timestamp
+
+When `proxy_purchase_id` is present, sender, receiver, currency, and remaining amount must match that order. This is the canonical source for partial and complete proxy-purchase collections.
 
 ### bookings
 
@@ -304,6 +416,24 @@ Algorithm:
 Positive balance means the member paid more than their share.
 Negative balance means the member consumed more than they paid.
 
+## Public funds
+
+`TripFund` is a real cash account in the trip base currency, not a synthetic member.
+`FundTransaction` stores contributions, refunds, cash adjustments, and external
+collections. Transactions are never silently deleted; voiding records the actor,
+timestamp, and reason. Active fund-paid expenses are the canonical cash outflow and are
+not duplicated as a fund transaction.
+
+Each expense has one exclusive payment source:
+
+- `paymentSource=member`: `payerMemberId` is required and `fundId` is null.
+- `paymentSource=fund`: `fundId` is required and `payerMemberId` is null.
+
+PostgreSQL check constraints enforce this invariant. Contributions and collections count
+as member payments for fair-share balances; refunds subtract that payment credit. Public
+fund cash is contributions plus credits and collections, minus refunds, debits, and active
+fund-paid expenses.
+
 ## Important modeling rules
 
 - Receipt is not the same as Expense.
@@ -311,4 +441,10 @@ Negative balance means the member consumed more than they paid.
 - Booking can exist without a timeline event.
 - Timeline event can exist without a booking.
 - A member can exist without a user account.
+- A proxy-purchase order is not a second balance ledger; its expense and settlements are canonical.
+- Several receipt-linked proxy-purchase orders can share the receipt's single canonical expense.
+- A receipt-linked order is purchased only inside receipt confirmation; it cannot create a second expense.
+- OCR originals are never replaced by translated or manually corrected text.
+- A public fund is not a trip member and cannot be used as a fake settlement party.
+- A fund-paid proxy-purchase collection returns to the same fund.
 - Do not delete financial records silently. Use status when historical context matters.

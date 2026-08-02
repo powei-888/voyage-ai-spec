@@ -17,6 +17,16 @@ enum TripRole {
   member
 }
 
+enum TripMemberKind {
+  traveler
+  external
+}
+
+enum TripInviteMode {
+  single
+  group
+}
+
 enum EventCategory {
   attraction
   restaurant
@@ -41,6 +51,30 @@ enum ExpenseCategory {
 enum ExpenseStatus {
   active
   voided
+}
+
+enum ExpenseSplitMethod {
+  equal
+  custom
+}
+
+enum ExpensePaymentSource {
+  member
+  fund
+}
+
+enum FundTransactionType {
+  contribution
+  refund
+  adjustment_credit
+  adjustment_debit
+  collection
+}
+
+enum ProxyPurchaseStatus {
+  requested
+  purchased
+  cancelled
 }
 
 enum ReceiptStatus {
@@ -79,15 +113,31 @@ enum AIProposalStatus {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  displayName String
-  avatarUrl   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  email        String   @unique
+  displayName  String
+  avatarUrl    String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  ownedTrips  Trip[]       @relation("TripOwner")
-  memberships TripMember[]
+  ownedTrips        Trip[]                 @relation("TripOwner")
+  memberships       TripMember[]
+  sessions          Session[]
+  inviteRedemptions TripInviteRedemption[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Trip {
@@ -104,14 +154,18 @@ model Trip {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  owner     User             @relation("TripOwner", fields: [ownerUserId], references: [id])
-  members   TripMember[]
-  days      ItineraryDay[]
-  events    ItineraryEvent[]
-  receipts  Receipt[]
-  expenses  Expense[]
-  bookings  Booking[]
-  proposals AIProposal[]
+  owner          User             @relation("TripOwner", fields: [ownerUserId], references: [id])
+  members        TripMember[]
+  days           ItineraryDay[]
+  events         ItineraryEvent[]
+  receipts       Receipt[]
+  expenses       Expense[]
+  bookings       Booking[]
+  proposals      AIProposal[]
+  settlements    Settlement[]
+  proxyPurchases ProxyPurchase[]
+  invites        TripInvite[]
+  funds          TripFund[]
 
   @@index([ownerUserId])
   @@index([startDate])
@@ -119,32 +173,84 @@ model Trip {
 }
 
 model TripMember {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   tripId      String
   userId      String?
   displayName String
-  role        TripRole @default(member)
+  role        TripRole       @default(member)
+  kind        TripMemberKind @default(traveler)
   joinedAt    DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   trip Trip  @relation(fields: [tripId], references: [id])
   user User? @relation(fields: [userId], references: [id])
 
-  createdEvents     ItineraryEvent[]     @relation("EventCreator")
-  eventParticipants EventParticipant[]
-  uploadedReceipts  Receipt[]            @relation("ReceiptUploader")
-  confirmedReceipts Receipt[]            @relation("ReceiptConfirmer")
-  paidExpenses      Expense[]            @relation("ExpensePayer")
-  createdExpenses   Expense[]            @relation("ExpenseCreator")
-  expenseShares     ExpenseParticipant[]
-  createdBookings   Booking[]            @relation("BookingCreator")
-  createdProposals  AIProposal[]         @relation("AIProposalCreator")
-  appliedProposals  AIProposal[]         @relation("AIProposalApplier")
+  createdEvents           ItineraryEvent[]       @relation("EventCreator")
+  eventParticipants       EventParticipant[]
+  uploadedReceipts        Receipt[]              @relation("ReceiptUploader")
+  confirmedReceipts       Receipt[]              @relation("ReceiptConfirmer")
+  paidExpenses            Expense[]              @relation("ExpensePayer")
+  createdExpenses         Expense[]              @relation("ExpenseCreator")
+  expenseShares           ExpenseParticipant[]
+  createdBookings         Booking[]              @relation("BookingCreator")
+  createdProposals        AIProposal[]           @relation("AIProposalCreator")
+  appliedProposals        AIProposal[]           @relation("AIProposalApplier")
+  settlementsSent         Settlement[]           @relation("SettlementSender")
+  settlementsReceived     Settlement[]           @relation("SettlementReceiver")
+  createdSettlements      Settlement[]           @relation("SettlementCreator")
+  proxyPurchasesReceived  ProxyPurchase[]        @relation("ProxyPurchaseRecipient")
+  proxyPurchasesPaid      ProxyPurchase[]        @relation("ProxyPurchasePayer")
+  createdProxyPurchases   ProxyPurchase[]        @relation("ProxyPurchaseCreator")
+  createdInvites          TripInvite[]           @relation("TripInviteCreator")
+  inviteRedemptions       TripInviteRedemption[] @relation("TripInviteMember")
+  fundTransactions        FundTransaction[]      @relation("FundTransactionMember")
+  createdFundTransactions FundTransaction[]      @relation("FundTransactionCreator")
+  voidedFundTransactions  FundTransaction[]      @relation("FundTransactionVoider")
 
+  @@unique([tripId, userId])
   @@index([tripId])
   @@index([userId])
+  @@index([tripId, kind])
   @@index([tripId, displayName])
+}
+
+model TripInvite {
+  id                String         @id @default(uuid())
+  tripId            String
+  tokenHash         String         @unique
+  mode              TripInviteMode
+  maxUses           Int
+  useCount          Int            @default(0)
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  createdByMemberId String
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  trip            Trip                   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  createdByMember TripMember             @relation("TripInviteCreator", fields: [createdByMemberId], references: [id], onDelete: Restrict)
+  redemptions     TripInviteRedemption[]
+
+  @@index([tripId, createdAt])
+  @@index([expiresAt])
+  @@index([createdByMemberId])
+}
+
+model TripInviteRedemption {
+  id         String   @id @default(uuid())
+  inviteId   String
+  userId     String
+  memberId   String?
+  redeemedAt DateTime @default(now())
+
+  invite TripInvite  @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  member TripMember? @relation("TripInviteMember", fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@unique([inviteId, userId])
+  @@index([userId])
+  @@index([memberId])
 }
 
 model ItineraryDay {
@@ -216,54 +322,120 @@ model Receipt {
   tripId              String
   uploadedByMemberId  String?
   imageUrl            String
+  imageOriginalName   String?
+  imageMimeType       String?
   ocrStatus           ReceiptStatus @default(pending)
   extractedJson       Json?
   confidenceScore     Decimal?
+  ocrAttemptCount     Int           @default(0)
+  ocrMaxAttempts      Int           @default(3)
+  ocrNextAttemptAt    DateTime      @default(now())
+  ocrStartedAt        DateTime?
+  ocrCompletedAt      DateTime?
+  ocrLeaseExpiresAt   DateTime?
+  ocrLastError        String?
   confirmedByMemberId String?
   confirmedAt         DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  trip              Trip        @relation(fields: [tripId], references: [id])
-  uploadedByMember  TripMember? @relation("ReceiptUploader", fields: [uploadedByMemberId], references: [id])
-  confirmedByMember TripMember? @relation("ReceiptConfirmer", fields: [confirmedByMemberId], references: [id])
-  confirmedExpense  Expense?    @relation("ReceiptConfirmedExpense")
+  trip               Trip                @relation(fields: [tripId], references: [id])
+  uploadedByMember   TripMember?         @relation("ReceiptUploader", fields: [uploadedByMemberId], references: [id])
+  confirmedByMember  TripMember?         @relation("ReceiptConfirmer", fields: [confirmedByMemberId], references: [id])
+  /// Canonical confirmed expense, owned by Expense.linkedReceiptId.
+  confirmedExpense   Expense?            @relation("ReceiptConfirmedExpense")
+  proxyPurchases     ProxyPurchase[]     @relation("ReceiptProxyPurchases")
+  proxyPurchaseItems ProxyPurchaseItem[] @relation("ReceiptProxyPurchaseItems")
 
   @@index([tripId])
   @@index([ocrStatus])
+  @@index([ocrStatus, ocrNextAttemptAt])
+  @@index([ocrLeaseExpiresAt])
   @@index([uploadedByMemberId])
   @@index([confirmedByMemberId])
 }
 
 model Expense {
-  id                String          @id @default(uuid())
+  id                String               @id @default(uuid())
   tripId            String
   title             String
   merchant          String?
   amount            Decimal
   currency          String
-  category          ExpenseCategory @default(other)
+  category          ExpenseCategory      @default(other)
   expenseDate       DateTime?
-  payerMemberId     String
-  linkedReceiptId   String?         @unique
+  paymentSource     ExpensePaymentSource @default(member)
+  payerMemberId     String?
+  fundId            String?
+  linkedReceiptId   String?              @unique
   linkedEventId     String?
-  status            ExpenseStatus   @default(active)
+  status            ExpenseStatus        @default(active)
+  splitMethod       ExpenseSplitMethod   @default(equal)
   createdByMemberId String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
   trip            Trip                 @relation(fields: [tripId], references: [id])
-  payerMember     TripMember           @relation("ExpensePayer", fields: [payerMemberId], references: [id])
+  payerMember     TripMember?          @relation("ExpensePayer", fields: [payerMemberId], references: [id])
+  fund            TripFund?            @relation(fields: [fundId], references: [id])
   createdByMember TripMember?          @relation("ExpenseCreator", fields: [createdByMemberId], references: [id])
+  /// The single canonical receipt-to-expense relation; uniqueness makes confirmation idempotent.
   linkedReceipt   Receipt?             @relation("ReceiptConfirmedExpense", fields: [linkedReceiptId], references: [id])
   linkedEvent     ItineraryEvent?      @relation(fields: [linkedEventId], references: [id])
   participants    ExpenseParticipant[]
+  proxyPurchases  ProxyPurchase[]
 
   @@index([tripId])
   @@index([payerMemberId])
+  @@index([fundId])
   @@index([linkedEventId])
   @@index([status])
   @@index([createdByMemberId])
+}
+
+model TripFund {
+  id        String   @id @default(uuid())
+  tripId    String
+  name      String
+  currency  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip           Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  expenses       Expense[]
+  transactions   FundTransaction[]
+  proxyPurchases ProxyPurchase[]
+
+  @@unique([tripId, currency])
+  @@index([tripId])
+}
+
+model FundTransaction {
+  id                String              @id @default(uuid())
+  fundId            String
+  type              FundTransactionType
+  memberId          String?
+  amount            Decimal
+  transactionDate   DateTime
+  note              String?
+  proxyPurchaseId   String?
+  createdByMemberId String?
+  voidedAt          DateTime?
+  voidedByMemberId  String?
+  voidReason        String?
+  createdAt         DateTime            @default(now())
+
+  fund            TripFund       @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  member          TripMember?    @relation("FundTransactionMember", fields: [memberId], references: [id])
+  proxyPurchase   ProxyPurchase? @relation(fields: [proxyPurchaseId], references: [id], onDelete: SetNull)
+  createdByMember TripMember?    @relation("FundTransactionCreator", fields: [createdByMemberId], references: [id])
+  voidedByMember  TripMember?    @relation("FundTransactionVoider", fields: [voidedByMemberId], references: [id], onDelete: Restrict)
+
+  @@index([fundId, transactionDate])
+  @@index([memberId])
+  @@index([proxyPurchaseId])
+  @@index([createdByMemberId])
+  @@index([voidedByMemberId])
 }
 
 model ExpenseParticipant {
@@ -278,6 +450,89 @@ model ExpenseParticipant {
 
   @@unique([expenseId, memberId])
   @@index([memberId])
+}
+
+model Settlement {
+  id                String   @id @default(uuid())
+  tripId            String
+  fromMemberId      String
+  toMemberId        String
+  amount            Decimal
+  currency          String
+  note              String?
+  settledAt         DateTime
+  createdByMemberId String?
+  proxyPurchaseId   String?
+  createdAt         DateTime @default(now())
+
+  trip            Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  fromMember      TripMember     @relation("SettlementSender", fields: [fromMemberId], references: [id])
+  toMember        TripMember     @relation("SettlementReceiver", fields: [toMemberId], references: [id])
+  createdByMember TripMember?    @relation("SettlementCreator", fields: [createdByMemberId], references: [id])
+  proxyPurchase   ProxyPurchase? @relation(fields: [proxyPurchaseId], references: [id], onDelete: SetNull)
+
+  @@index([tripId, settledAt])
+  @@index([fromMemberId])
+  @@index([toMemberId])
+  @@index([proxyPurchaseId])
+}
+
+model ProxyPurchase {
+  id                String               @id @default(uuid())
+  tripId            String
+  externalMemberId  String
+  payerMemberId     String?
+  paymentSource     ExpensePaymentSource @default(member)
+  fundId            String?
+  expenseId         String?              @unique
+  status            ProxyPurchaseStatus  @default(requested)
+  currency          String
+  note              String?
+  purchasedAt       DateTime?
+  createdByMemberId String?
+  sourceReceiptId   String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  trip             Trip                @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  externalMember   TripMember          @relation("ProxyPurchaseRecipient", fields: [externalMemberId], references: [id])
+  payerMember      TripMember?         @relation("ProxyPurchasePayer", fields: [payerMemberId], references: [id])
+  fund             TripFund?           @relation(fields: [fundId], references: [id])
+  expense          Expense?            @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  createdByMember  TripMember?         @relation("ProxyPurchaseCreator", fields: [createdByMemberId], references: [id])
+  sourceReceipt    Receipt?            @relation("ReceiptProxyPurchases", fields: [sourceReceiptId], references: [id], onDelete: SetNull)
+  items            ProxyPurchaseItem[]
+  settlements      Settlement[]
+  fundTransactions FundTransaction[]
+
+  @@index([tripId, status])
+  @@index([externalMemberId])
+  @@index([payerMemberId])
+  @@index([fundId])
+  @@index([createdByMemberId])
+  @@index([sourceReceiptId])
+}
+
+model ProxyPurchaseItem {
+  id                     String   @id @default(uuid())
+  proxyPurchaseId        String
+  description            String
+  quantity               Int      @default(1)
+  unitPrice              Decimal
+  amount                 Decimal
+  note                   String?
+  sortOrder              Int      @default(0)
+  sourceReceiptId        String?
+  sourceReceiptItemIndex Int?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  proxyPurchase ProxyPurchase @relation(fields: [proxyPurchaseId], references: [id], onDelete: Cascade)
+  sourceReceipt Receipt?      @relation("ReceiptProxyPurchaseItems", fields: [sourceReceiptId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceReceiptId, sourceReceiptItemIndex])
+  @@index([proxyPurchaseId, sortOrder])
+  @@index([sourceReceiptId])
 }
 
 model Booking {

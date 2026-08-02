@@ -1,0 +1,149 @@
+.spin {
+  animation: voyage-spin 0.8s linear infinite;
+}
+
+@keyframes voyage-spin {
+  to { transform: rotate(360deg); }
+}
+
+.split-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.split-fieldset > legend {
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.segmented-control {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f5f7f6;
+}
+
+.segmented-control label {
+  padding: 7px 12px;
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.segmented-control label.active {
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgb(23 45 39 / 12%);
+}
+
+.segmented-control input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.split-member-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.split-member-grid > label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+}
+
+.split-member-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.split-member-grid input[type="text"],
+.split-member-grid input[inputmode="decimal"] {
+  width: 110px;
+  min-width: 0;
+}
+
+.settlement-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settlement-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settlement-row:last-child {
+  border-bottom: 0;
+}
+
+.settlement-row > span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.settlement-row strong,
+.settlement-row b {
+  color: var(--ink);
+}
+
+.settled-state {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 16px 0;
+  color: #26715d;
+  font-weight: 700;
+}
+
+.draggable-event {
+  position: relative;
+}
+
+.draggable-event.is-dragging {
+  opacity: 0.45;
+}
+
+.drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+@media (max-width: 650px) {
+  .split-member-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .settlement-row .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}

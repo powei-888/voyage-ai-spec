@@ -1,22 +1,27 @@
 {
   "name": "@voyage/web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "dependencies": {
-    "@voyage/shared": "0.1.0",
+    "@voyage/shared": "0.2.0",
+    "lucide-react": "^1.28.0",
     "next": "^16.2.12",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-qr-code": "^2.2.0"
   },
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('No web tests yet')\""
+    "test": "jest --runInBand"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4"
+    "@types/react-dom": "^19.2.4",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.12"
   }
 }

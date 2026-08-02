@@ -11,3 +11,5 @@ export type HealthStatus = {
   timestamp: string;
   version: string;
 };
+
+export * from "./domain";

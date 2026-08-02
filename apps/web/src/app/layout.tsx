@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Voyage AI",
-  description: "AI-native travel collaboration workspace"
+  title: { default: "Voyage AI", template: "%s | Voyage AI" },
+  description: "AI 原生旅程協作工作區"
 };
 
 export default function RootLayout({
@@ -12,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="zh-Hant" suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );
