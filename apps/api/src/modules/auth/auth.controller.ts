@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Post, Req } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
 import { ok } from "../../common/api-response";
+import { clientIp } from "../../common/client-ip";
 import { CurrentUserId } from "../../common/current-user.decorator";
 import { PrismaService } from "../../infra/database/prisma.service";
 import { ChangePasswordDto, LoginDto, RegisterDto } from "./auth.dto";
@@ -16,8 +17,8 @@ export class AuthController {
 
   @Public()
   @Post("register")
-  async register(@Body() dto: RegisterDto) {
-    return ok(await this.auth.register(dto));
+  async register(@Body() dto: RegisterDto, @Req() request: FastifyRequest) {
+    return ok(await this.auth.register(dto, clientIp(request)));
   }
 
   @Public()

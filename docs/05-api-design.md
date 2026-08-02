@@ -63,6 +63,24 @@ POST /api/trips/:tripId/members
 PATCH /api/trips/:tripId/members/:memberId
 ```
 
+## Trip invitations
+
+```http
+GET  /api/trips/:tripId/invites
+POST /api/trips/:tripId/invites
+POST /api/trips/:tripId/invites/:inviteId/revoke
+GET  /api/invites/:token
+POST /api/invites/:token/accept
+```
+
+Only an owner can list, create, or revoke invitations. The public preview route returns a
+limited trip summary and computed status without exposing itinerary, member, expense, or
+receipt data. Creation accepts `single` or `group`, a 1-30 day expiry, and at most 100
+uses. It returns the raw token once; later list responses contain usage and redemption
+history but never the token. Accepting a valid invitation creates a traveler membership,
+increments the use count, and writes a redemption record in one transaction. Existing
+members receive an idempotent success without consuming another use.
+
 ## Itinerary
 
 ```http
@@ -228,6 +246,8 @@ POST /api/auth/logout-all
 
 Readiness returns HTTP 503 when PostgreSQL, upload storage, disk capacity, or queue reads
 are unavailable. Changing a password revokes all active sessions.
+When `REQUIRE_INVITE_FOR_REGISTRATION=true`, `POST /api/auth/register` requires an
+`inviteToken`; account creation and invitation redemption succeed or roll back together.
 
 ## Bookings
 
@@ -258,6 +278,8 @@ Create proposal request:
 ## API implementation notes
 
 - All trip-scoped APIs must verify trip membership.
+- Invitation management requires owner access; public previews must remain summary-only.
+- Invitation tokens must be generated from 256 random bits and stored only as SHA-256 hashes.
 - DTO validation is required.
 - Use pagination for list APIs when data can grow.
 - AI proposal accept endpoint should validate proposal status before applying.

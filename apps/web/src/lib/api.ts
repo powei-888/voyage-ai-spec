@@ -14,6 +14,15 @@ const API_ERROR_MESSAGES: Record<string, string> = {
   INVALID_CREDENTIALS: "電子郵件或密碼不正確。",
   LOGIN_RATE_LIMITED: "登入失敗次數過多，請稍後再試。",
   EMAIL_ALREADY_REGISTERED: "此電子郵件已建立帳號。",
+  INVITE_REQUIRED: "建立帳號需要有效的旅程邀請連結。",
+  INVITE_NOT_FOUND: "找不到這份旅程邀請。",
+  INVITE_REVOKED: "這份旅程邀請已被撤銷。",
+  INVITE_EXPIRED: "這份旅程邀請已過期。",
+  INVITE_FULL: "這份旅程邀請的名額已滿。",
+  INVITE_UNAVAILABLE: "這份旅程邀請目前無法使用，請重新整理確認狀態。",
+  INVITE_MAX_USES_INVALID: "群組邀請至少需要兩個名額。",
+  INVITE_RATE_LIMITED: "邀請請求次數過多，請稍後再試。",
+  TRIP_ARCHIVED: "此旅程已封存，無法再接受新成員。",
   INVALID_CURRENT_PASSWORD: "目前密碼不正確。",
   PASSWORD_UNCHANGED: "新密碼必須與目前密碼不同。",
   INVALID_DATE: "日期格式或日期內容不正確。",
@@ -124,6 +133,10 @@ export async function apiPublicSend<TData>(
     },
     false
   );
+}
+
+export async function apiPublicGet<TData>(path: string): Promise<TData> {
+  return request<TData>(path, { method: "GET" }, false);
 }
 
 export async function apiUpload<TData>(

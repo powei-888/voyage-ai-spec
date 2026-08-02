@@ -1,5 +1,13 @@
 import { Transform } from "class-transformer";
-import { IsEmail, IsNotEmpty, IsString, MaxLength, MinLength } from "class-validator";
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength
+} from "class-validator";
 
 export class RegisterDto {
   @Transform(({ value }) => String(value).trim().toLowerCase())
@@ -16,6 +24,11 @@ export class RegisterDto {
   @MinLength(8)
   @MaxLength(128)
   password!: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{43}$/)
+  inviteToken?: string;
 }
 
 export class LoginDto {

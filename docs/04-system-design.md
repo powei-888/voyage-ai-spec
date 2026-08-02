@@ -155,6 +155,11 @@ MVP must still include basic access rules:
 - Only owner can archive trip.
 - Members can edit itinerary and expenses.
 - Receipt files should use controlled access URLs.
+- Only owners can create, list, or revoke trip invitations.
+- Public invite previews expose only trip summary fields and are rate limited per client IP.
+- Raw invite tokens are displayed once, hashed at rest, expire, and have atomic use limits.
+- Invite registration and traveler membership creation share one PostgreSQL transaction.
+- External proxy-purchase parties are not login identities and cannot be auto-merged by name.
 
 ## Testing strategy
 
@@ -164,6 +169,7 @@ Required unit tests:
 - settlement aggregation
 - OCR draft to confirmation flow
 - AI proposal cannot apply if rejected
+- invitation use limit cannot be exceeded and existing-member acceptance is idempotent
 
 Recommended integration tests:
 

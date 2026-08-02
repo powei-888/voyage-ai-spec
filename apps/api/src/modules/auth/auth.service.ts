@@ -5,6 +5,7 @@ import { PrismaService } from "../../infra/database/prisma.service";
 import { AuthAttemptLimiterService } from "./auth-attempt-limiter.service";
 import { ChangePasswordDto, LoginDto, RegisterDto } from "./auth.dto";
 import { hashPassword, verifyPassword } from "./password";
+import { TripInvitesService } from "../trip-invites/trip-invites.service";
 
 const SESSION_DAYS = 30;
 const MAX_USER_SESSIONS = 10;
@@ -20,10 +21,18 @@ const publicUser = {
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly attempts: AuthAttemptLimiterService
+    private readonly attempts: AuthAttemptLimiterService,
+    private readonly invites: TripInvitesService
   ) {}
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, ipAddress = "unknown") {
+    if (process.env.REQUIRE_INVITE_FOR_REGISTRATION === "true" && !dto.inviteToken) {
+      throw DomainError.forbidden(
+        "INVITE_REQUIRED",
+        "A valid trip invitation is required to create an account."
+      );
+    }
+    if (dto.inviteToken) this.invites.assertRegistrationAllowed(ipAddress);
     const passwordHash = await hashPassword(dto.password);
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email }
@@ -36,7 +45,7 @@ export class AuthService {
       );
     }
 
-    const user = await this.prisma.$transaction(async (tx) => {
+    const registration = await this.prisma.$transaction(async (tx) => {
       const saved = existing
         ? await tx.user.update({
             where: { id: existing.id },
@@ -51,14 +60,27 @@ export class AuthService {
             },
             select: publicUser
           });
-      await tx.tripMember.updateMany({
-        where: { userId: saved.id, joinedAt: null },
-        data: { joinedAt: new Date() }
-      });
-      return saved;
+      let joinedTripId: string | null = null;
+      if (dto.inviteToken) {
+        const redemption = await this.invites.redeemForRegistration(
+          tx,
+          dto.inviteToken,
+          saved
+        );
+        joinedTripId = redemption.tripId;
+      } else {
+        await tx.tripMember.updateMany({
+          where: { userId: saved.id, joinedAt: null },
+          data: { joinedAt: new Date() }
+        });
+      }
+      return { user: saved, joinedTripId };
     });
 
-    return this.createSession(user);
+    return {
+      ...(await this.createSession(registration.user)),
+      joinedTripId: registration.joinedTripId
+    };
   }
 
   async login(dto: LoginDto, ipAddress: string) {

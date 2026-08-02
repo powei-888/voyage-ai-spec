@@ -12,6 +12,7 @@ import { MembersModule } from "./modules/members/members.module";
 import { ProxyPurchasesModule } from "./modules/proxy-purchases/proxy-purchases.module";
 import { ReceiptsModule } from "./modules/receipts/receipts.module";
 import { SettlementsModule } from "./modules/settlements/settlements.module";
+import { TripInvitesModule } from "./modules/trip-invites/trip-invites.module";
 import { TripsModule } from "./modules/trips/trips.module";
 
 @Module({
@@ -20,6 +21,7 @@ import { TripsModule } from "./modules/trips/trips.module";
     LocalModelModule,
     CommonModule,
     HealthModule,
+    TripInvitesModule,
     AuthModule,
     TripsModule,
     MembersModule,

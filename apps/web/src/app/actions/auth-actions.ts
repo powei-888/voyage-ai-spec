@@ -1,36 +1,58 @@
 "use server";
 
-import type { AuthSession } from "@voyage/shared";
+import type { AuthRegistrationSession, AuthSession } from "@voyage/shared";
 import { redirect } from "next/navigation";
 import { apiPublicSend, apiSend } from "../../lib/api";
-import { formString, redirectWithError } from "../../lib/action-utils";
+import { formString, optionalString, redirectWithError } from "../../lib/action-utils";
+import { safeReturnPath } from "../../lib/navigation";
 import { clearSession, saveSession } from "../../lib/session";
 
 export async function loginAction(formData: FormData): Promise<void> {
+  const returnTo = safeReturnPath(formString(formData, "returnTo"));
+  const inviteToken = optionalString(formData, "inviteToken");
   try {
     const session = await apiPublicSend<AuthSession>("/auth/login", {
       email: formString(formData, "email"),
       password: formString(formData, "password")
     });
     await saveSession(session);
-    redirect("/");
+    redirect(returnTo);
   } catch (error) {
-    redirectWithError("/login", error);
+    redirectWithError(authPath("login", returnTo, inviteToken), error);
   }
 }
 
 export async function registerAction(formData: FormData): Promise<void> {
+  const returnTo = safeReturnPath(formString(formData, "returnTo"));
+  const inviteToken = optionalString(formData, "inviteToken");
   try {
-    const session = await apiPublicSend<AuthSession>("/auth/register", {
+    const session = await apiPublicSend<AuthRegistrationSession>("/auth/register", {
       displayName: formString(formData, "displayName"),
       email: formString(formData, "email"),
-      password: formString(formData, "password")
+      password: formString(formData, "password"),
+      inviteToken
     });
     await saveSession(session);
-    redirect("/");
+    if (session.joinedTripId) {
+      redirect(`/trips/${session.joinedTripId}?notice=${encodeURIComponent("帳號已建立並加入旅程。")}`);
+    }
+    redirect(returnTo);
   } catch (error) {
-    redirectWithError("/login?mode=register", error);
+    redirectWithError(authPath("register", returnTo, inviteToken), error);
   }
+}
+
+function authPath(
+  mode: "login" | "register",
+  returnTo: string,
+  inviteToken?: string
+): string {
+  const query = new URLSearchParams();
+  if (mode === "register") query.set("mode", "register");
+  if (returnTo !== "/") query.set("next", returnTo);
+  if (inviteToken) query.set("invite", inviteToken);
+  const suffix = query.toString();
+  return suffix ? `/login?${suffix}` : "/login";
 }
 
 export async function logoutAction(): Promise<void> {

@@ -11,6 +11,61 @@ export type AuthSession = {
   user: LocalUser;
 };
 
+export type AuthRegistrationSession = AuthSession & {
+  joinedTripId: string | null;
+};
+
+export type TripInviteStatus = "active" | "expired" | "revoked" | "full" | "archived";
+
+export type TripInviteRedemption = {
+  id: string;
+  redeemedAt: string;
+  user: Pick<LocalUser, "id" | "email" | "displayName">;
+};
+
+export type TripInvite = {
+  id: string;
+  tripId: string;
+  mode: "single" | "group";
+  maxUses: number;
+  useCount: number;
+  remainingUses: number;
+  status: TripInviteStatus;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+  createdByMember: { id: string; displayName: string };
+  redemptions: TripInviteRedemption[];
+};
+
+export type TripInviteCreateResult = {
+  invite: TripInvite;
+  token: string;
+};
+
+export type TripInvitePreview = {
+  status: TripInviteStatus;
+  mode: "single" | "group";
+  maxUses: number;
+  useCount: number;
+  remainingUses: number;
+  expiresAt: string;
+  trip: {
+    name: string;
+    destinationCountry: string | null;
+    destinationCity: string | null;
+    startDate: string;
+    endDate: string;
+  };
+  invitedBy: { displayName: string };
+};
+
+export type TripInviteAcceptResult = {
+  tripId: string;
+  memberId: string;
+  alreadyMember: boolean;
+};
+
 export type RecordCounts = {
   members: number;
   events: number;

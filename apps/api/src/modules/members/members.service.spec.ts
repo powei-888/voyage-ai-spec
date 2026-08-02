@@ -29,6 +29,8 @@ describe("MembersService", () => {
       },
       tripMember: {
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        delete: jest.fn(),
         update: jest.fn()
       },
       $transaction: jest.fn(
@@ -105,5 +107,34 @@ describe("MembersService", () => {
       })
     ).rejects.toMatchObject({ code: "EXTERNAL_MEMBER_ROLE_INVALID" });
     expect(prisma.tripMember.update).not.toHaveBeenCalled();
+  });
+
+  it("does not remove a member who created invitation history", async () => {
+    const { service, prisma } = setup();
+    prisma.tripMember.findFirst.mockResolvedValue({
+      id: "secondary-owner",
+      userId: "secondary-user",
+      kind: TripMemberKind.traveler,
+      role: TripRole.owner
+    });
+    prisma.tripMember.findUnique.mockResolvedValue({
+      _count: {
+        paidExpenses: 0,
+        expenseShares: 0,
+        createdEvents: 0,
+        createdBookings: 0,
+        settlementsSent: 0,
+        settlementsReceived: 0,
+        proxyPurchasesReceived: 0,
+        proxyPurchasesPaid: 0,
+        createdProxyPurchases: 0,
+        createdInvites: 1
+      }
+    });
+
+    await expect(
+      service.remove("owner-user", "trip-1", "secondary-owner")
+    ).rejects.toMatchObject({ code: "MEMBER_HAS_RECORDS", status: 409 });
+    expect(prisma.tripMember.delete).not.toHaveBeenCalled();
   });
 });

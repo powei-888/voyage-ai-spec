@@ -86,12 +86,39 @@ Fields:
 Notes:
 
 user_id is nullable to support invited members who do not have accounts yet.
+`kind=external` rows are accounting-only proxy-purchase parties. Invitation redemption
+always creates or reuses a `kind=traveler` row and never merges by display name.
 
 Indexes:
 
 - trip_id
 - user_id
 - trip_id + display_name
+
+### trip_invites
+
+Represents a revocable, expiring capability for joining one trip.
+
+Fields:
+
+- id: uuid, primary key
+- trip_id: uuid
+- token_hash: unique SHA-256 digest
+- mode: enum single / group
+- max_uses: integer 1-100
+- use_count: integer
+- expires_at: timestamp
+- revoked_at: timestamp nullable
+- created_by_member_id: uuid
+
+The raw token is never persisted. A database check keeps use_count between zero and
+max_uses and forces single invitations to have exactly one use.
+
+### trip_invite_redemptions
+
+Records which authenticated user consumed an invitation and when. The `(invite_id,
+user_id)` pair is unique. `member_id` can become null if an owner later removes that
+traveler, preserving the invitation audit record without blocking member removal.
 
 ### itinerary_days
 

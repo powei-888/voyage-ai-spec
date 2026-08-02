@@ -144,7 +144,8 @@ export class MembersService {
             settlementsReceived: true,
             proxyPurchasesReceived: true,
             proxyPurchasesPaid: true,
-            createdProxyPurchases: true
+            createdProxyPurchases: true,
+            createdInvites: true
           }
         }
       }

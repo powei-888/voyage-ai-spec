@@ -22,6 +22,11 @@ enum TripMemberKind {
   external
 }
 
+enum TripInviteMode {
+  single
+  group
+}
+
 enum EventCategory {
   attraction
   restaurant
@@ -103,9 +108,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  ownedTrips  Trip[]       @relation("TripOwner")
-  memberships TripMember[]
-  sessions    Session[]
+  ownedTrips        Trip[]                 @relation("TripOwner")
+  memberships       TripMember[]
+  sessions          Session[]
+  inviteRedemptions TripInviteRedemption[]
 }
 
 model Session {
@@ -145,6 +151,7 @@ model Trip {
   proposals      AIProposal[]
   settlements    Settlement[]
   proxyPurchases ProxyPurchase[]
+  invites        TripInvite[]
 
   @@index([ownerUserId])
   @@index([startDate])
@@ -165,28 +172,68 @@ model TripMember {
   trip Trip  @relation(fields: [tripId], references: [id])
   user User? @relation(fields: [userId], references: [id])
 
-  createdEvents          ItineraryEvent[]     @relation("EventCreator")
+  createdEvents          ItineraryEvent[]       @relation("EventCreator")
   eventParticipants      EventParticipant[]
-  uploadedReceipts       Receipt[]            @relation("ReceiptUploader")
-  confirmedReceipts      Receipt[]            @relation("ReceiptConfirmer")
-  paidExpenses           Expense[]            @relation("ExpensePayer")
-  createdExpenses        Expense[]            @relation("ExpenseCreator")
+  uploadedReceipts       Receipt[]              @relation("ReceiptUploader")
+  confirmedReceipts      Receipt[]              @relation("ReceiptConfirmer")
+  paidExpenses           Expense[]              @relation("ExpensePayer")
+  createdExpenses        Expense[]              @relation("ExpenseCreator")
   expenseShares          ExpenseParticipant[]
-  createdBookings        Booking[]            @relation("BookingCreator")
-  createdProposals       AIProposal[]         @relation("AIProposalCreator")
-  appliedProposals       AIProposal[]         @relation("AIProposalApplier")
-  settlementsSent        Settlement[]         @relation("SettlementSender")
-  settlementsReceived    Settlement[]         @relation("SettlementReceiver")
-  createdSettlements     Settlement[]         @relation("SettlementCreator")
-  proxyPurchasesReceived ProxyPurchase[]      @relation("ProxyPurchaseRecipient")
-  proxyPurchasesPaid     ProxyPurchase[]      @relation("ProxyPurchasePayer")
-  createdProxyPurchases  ProxyPurchase[]      @relation("ProxyPurchaseCreator")
+  createdBookings        Booking[]              @relation("BookingCreator")
+  createdProposals       AIProposal[]           @relation("AIProposalCreator")
+  appliedProposals       AIProposal[]           @relation("AIProposalApplier")
+  settlementsSent        Settlement[]           @relation("SettlementSender")
+  settlementsReceived    Settlement[]           @relation("SettlementReceiver")
+  createdSettlements     Settlement[]           @relation("SettlementCreator")
+  proxyPurchasesReceived ProxyPurchase[]        @relation("ProxyPurchaseRecipient")
+  proxyPurchasesPaid     ProxyPurchase[]        @relation("ProxyPurchasePayer")
+  createdProxyPurchases  ProxyPurchase[]        @relation("ProxyPurchaseCreator")
+  createdInvites         TripInvite[]           @relation("TripInviteCreator")
+  inviteRedemptions      TripInviteRedemption[] @relation("TripInviteMember")
 
   @@unique([tripId, userId])
   @@index([tripId])
   @@index([userId])
   @@index([tripId, kind])
   @@index([tripId, displayName])
+}
+
+model TripInvite {
+  id                String         @id @default(uuid())
+  tripId            String
+  tokenHash         String         @unique
+  mode              TripInviteMode
+  maxUses           Int
+  useCount          Int            @default(0)
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  createdByMemberId String
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  trip            Trip                   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  createdByMember TripMember             @relation("TripInviteCreator", fields: [createdByMemberId], references: [id], onDelete: Restrict)
+  redemptions     TripInviteRedemption[]
+
+  @@index([tripId, createdAt])
+  @@index([expiresAt])
+  @@index([createdByMemberId])
+}
+
+model TripInviteRedemption {
+  id         String   @id @default(uuid())
+  inviteId   String
+  userId     String
+  memberId   String?
+  redeemedAt DateTime @default(now())
+
+  invite TripInvite  @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  member TripMember? @relation("TripInviteMember", fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@unique([inviteId, userId])
+  @@index([userId])
+  @@index([memberId])
 }
 
 model ItineraryDay {

@@ -1,4 +1,4 @@
-import type { Trip, TripMember } from "@voyage/shared";
+import type { LocalUser, Trip, TripInvite, TripMember } from "@voyage/shared";
 import {
   Crown,
   Mail,
@@ -15,6 +15,7 @@ import { EmptyState } from "../../../../components/empty-state";
 import { PendingButton } from "../../../../components/pending-button";
 import { Notice } from "../../../../components/notice";
 import { PageHeading } from "../../../../components/page-heading";
+import { TripInviteManager } from "../../../../components/trip-invite-manager";
 import { apiGet } from "../../../../lib/api";
 import { formatDate, titleCase } from "../../../../lib/format";
 
@@ -25,10 +26,15 @@ type PageProps = {
 
 export default async function MembersPage({ params, searchParams }: PageProps) {
   const [{ tripId }, query] = await Promise.all([params, searchParams]);
-  const [trip, members] = await Promise.all([
+  const [trip, members, user] = await Promise.all([
     apiGet<Trip>(`/trips/${tripId}`),
-    apiGet<TripMember[]>(`/trips/${tripId}/members`)
+    apiGet<TripMember[]>(`/trips/${tripId}/members`),
+    apiGet<LocalUser>("/auth/me")
   ]);
+  const isOwner = trip.ownerUserId === user.id;
+  const invites = isOwner
+    ? await apiGet<TripInvite[]>(`/trips/${tripId}/invites`)
+    : [];
   const travelerCount = members.filter((member) => member.kind === "traveler").length;
   const externalCount = members.length - travelerCount;
 
@@ -41,6 +47,8 @@ export default async function MembersPage({ params, searchParams }: PageProps) {
         actions={<a className="button button-primary" href="#add-member"><Plus size={17} /> 新增對象</a>}
       />
       <Notice error={query.error} notice={query.notice} />
+
+      {isOwner ? <TripInviteManager invites={invites} tripId={tripId} /> : null}
 
       <section className="content-section">
         <div className="section-heading">

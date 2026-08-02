@@ -26,6 +26,8 @@ AI should reduce travel chaos, but users must stay in control.
 - Booking hub
 - AI proposal review and decision lifecycle
 - Local account authentication with expiring server sessions
+- Single-use and group trip invitations with expiring links and downloadable QR codes
+- Invite-only registration, atomic membership redemption, and owner revocation history
 - Drag-and-drop itinerary ordering and cross-day moves
 - Responsive operational UI with Traditional Chinese copy
 - Basic trip membership and owner access rules
@@ -180,6 +182,10 @@ The previous upload directory is retained with a `before-restore` timestamp unti
 
 The API stores scrypt password hashes and opaque, hashed session tokens. The web app keeps the session token in an HttpOnly cookie and forwards it as a Bearer token from server-side requests. Login failures are limited per IP and email, unknown accounts still execute scrypt verification, each account is capped at ten active sessions, and changing a password revokes every session. Trip-scoped requests still verify membership, and owner-only operations remain protected.
 
+Trip owners create invitations from the member page. A single invitation has one use; a group invitation has an owner-selected limit up to 100. Both expire within 1-30 days and can be revoked immediately. The raw 256-bit invitation token is returned only when it is created; PostgreSQL stores only its SHA-256 hash. Public invitation previews expose only the trip name, destination, dates, inviter, expiry, and remaining capacity. Registration and membership redemption run in one database transaction, and accepting an invitation is idempotent for existing travelers. External proxy-purchase parties are never converted or name-matched into login members.
+
+Set `APP_ORIGIN` to the public HTTPS origin before sharing QR codes. Set `REQUIRE_INVITE_FOR_REGISTRATION=true` on shared deployments to disable open registration. `INVITE_PREVIEW_RATE_LIMIT` and `INVITE_REDEEM_RATE_LIMIT` cap requests per client IP in a ten-minute window. A Cloudflare Access policy in front of the whole hostname must also allow intended invitees to reach `/invite/*`; application invitations cannot bypass an upstream Access block.
+
 Seeded login:
 
 ```text
@@ -210,7 +216,7 @@ npm run test
 npm run build
 ```
 
-API tests cover liveness/readiness, password hashing and replacement, login limiting, session revocation, deterministic splitting, payer exclusion, rounding, multi-item proxy-purchase totals, adjusted receipt allocations, canonical purchase expenses, partial collections, external receivables, completed repayments, cross-day event movement, voided expenses, OCR queue success/retry/exhaustion, receipt confirmation idempotency, and AI proposal state transitions. Web tests cover date, money, and enum formatting.
+API tests cover liveness/readiness, password hashing and replacement, login limiting, session revocation, invitation hashing and atomic redemption, invite-only registration, deterministic splitting, payer exclusion, rounding, multi-item proxy-purchase totals, adjusted receipt allocations, canonical purchase expenses, partial collections, external receivables, completed repayments, cross-day event movement, voided expenses, OCR queue success/retry/exhaustion, receipt confirmation idempotency, and AI proposal state transitions. Web tests cover date, money, enum formatting, and safe post-login return paths.
 
 ### Main API routes
 
@@ -224,6 +230,10 @@ GET|POST        /api/trips
 GET|PATCH       /api/trips/:tripId
 POST            /api/trips/:tripId/archive
 GET|POST        /api/trips/:tripId/members
+GET|POST        /api/trips/:tripId/invites
+POST            /api/trips/:tripId/invites/:inviteId/revoke
+GET             /api/invites/:token
+POST            /api/invites/:token/accept
 GET             /api/trips/:tripId/itinerary-days
 POST            /api/trips/:tripId/itinerary-days/:dayId/events
 POST            /api/trips/:tripId/itinerary-days/:dayId/events/reorder
